@@ -100,10 +100,52 @@ describe('슬라이드', () => {
     expect(allSlides().map((slide) => slide.text)).toEqual(['첫 장', '둘째 장'])
   })
 
-  it('장을 옮기면 되돌리기 목록을 비운다', () => {
-    useEditor.getState().setTitle({ text: 'a' })
-    useEditor.getState().addSlide()
-    expect(useEditor.getState().past).toHaveLength(0)
+  it('다른 장으로 가도 기록이 남고, 되돌리면 그 작업이 있던 장이 열린다', () => {
+    const state = useEditor.getState
+    state().setTitle({ text: '첫 장 글' })
+    state().addSlide()
+    state().setTitle({ text: '둘째 장 글' })
+
+    state().undo() // 둘째 장 글 되돌림
+    expect(state()).toMatchObject({ activeSlide: 1 })
+    expect(state().title.text).toBe('제목을 입력하세요')
+
+    state().undo() // 장 추가 되돌림
+    expect(state().slides).toHaveLength(1)
+    expect(state().title.text).toBe('첫 장 글')
+
+    state().undo() // 첫 장 글 되돌림
+    expect(state().title.text).toBe('제목을 입력하세요')
+
+    state().redo()
+    state().redo()
+    state().redo()
+    expect(state()).toMatchObject({ activeSlide: 1 })
+    expect(state().title.text).toBe('둘째 장 글')
+    state().selectSlide(0)
+    expect(state().title.text).toBe('첫 장 글')
+  })
+
+  it('1번 장 작업을 한 뒤 2번 장을 보다가 되돌리면 1번 장으로 돌아가 되돌린다', () => {
+    const state = useEditor.getState
+    state().addSlide()
+    state().selectSlide(0)
+    state().setTitle({ text: '고침' })
+    state().selectSlide(1)
+    state().undo()
+    expect(state().activeSlide).toBe(0)
+    expect(state().title.text).toBe('제목을 입력하세요')
+  })
+
+  it('장을 지운 것도 되돌린다', () => {
+    const state = useEditor.getState
+    state().setTitle({ text: 'A' })
+    state().addSlide()
+    state().setTitle({ text: 'B' })
+    state().removeSlide(1)
+    state().undo()
+    expect(state().slides).toHaveLength(2)
+    expect(state().title.text).toBe('B')
   })
 
   it('비율을 바꾸면 다른 장의 사진도 다시 맞춘다', () => {

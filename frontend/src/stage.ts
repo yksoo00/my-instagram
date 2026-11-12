@@ -47,7 +47,7 @@ function afterRender(): Promise<void> {
 
 /** 사진이 있는 모든 장을 차례로 저장한다. 끝나면 보던 장으로 돌아온다. */
 export async function exportAll(format: ExportFormat): Promise<void> {
-  const { activeSlide, past, future } = useEditor.getState()
+  const { activeSlide } = useEditor.getState()
   const stamp = Date.now()
   const slides = allSlides()
   for (let index = 0; index < slides.length; index++) {
@@ -57,6 +57,4 @@ export async function exportAll(format: ExportFormat): Promise<void> {
     exportImage(format, `${stamp}-${index + 1}`)
   }
   useEditor.getState().selectSlide(activeSlide)
-  // 저장하느라 장을 오갔을 뿐이니 보던 장의 되돌리기 목록은 되살린다.
-  useEditor.setState({ past, future })
 }

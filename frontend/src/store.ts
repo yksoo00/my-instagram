@@ -85,6 +85,9 @@ interface Snapshot {
   gradient: GradientState
   title: TitleState
   footer: FooterState
+  /** 모든 장. 장 추가·삭제와 다른 장의 변화까지 한 줄기로 되돌리려고 통째로 담는다. */
+  slides: SlideData[]
+  activeSlide: number
 }
 
 /** 템플릿으로 저장하는 값. 사진과 제목 글은 게시물마다 달라서 뺀다. */
@@ -111,8 +114,6 @@ interface EditorState extends Snapshot {
   past: Snapshot[]
   future: Snapshot[]
   error: string | null
-  slides: SlideData[]
-  activeSlide: number
   /** 각 장 오른쪽 위에 "1/5" 표시 */
   numbering: boolean
   setNumbering: (numbering: boolean) => void
@@ -185,7 +186,7 @@ const MERGE_WINDOW_MS = 600
 let lastKey: string | null = null
 let lastTime = 0
 
-function snapshot(state: Snapshot): Snapshot {
+function snapshot(state: EditorState): Snapshot {
   return {
     ratio: state.ratio,
     image: state.image,
@@ -193,6 +194,8 @@ function snapshot(state: Snapshot): Snapshot {
     gradient: state.gradient,
     title: state.title,
     footer: state.footer,
+    slides: withLiveSlide(state),
+    activeSlide: state.activeSlide,
   }
 }
 
@@ -224,10 +227,6 @@ export const useEditor = create<EditorState>((set) => ({
       lastKey = null
       return {
         ...previous,
-        slides:
-          previous.ratio === state.ratio
-            ? state.slides
-            : refitSlides(state.slides, previous.ratio),
         past: state.past.slice(0, -1),
         future: [snapshot(state), ...state.future],
       }
@@ -240,8 +239,6 @@ export const useEditor = create<EditorState>((set) => ({
       lastKey = null
       return {
         ...next,
-        slides:
-          next.ratio === state.ratio ? state.slides : refitSlides(state.slides, next.ratio),
         past: [...state.past, snapshot(state)],
         future: state.future.slice(1),
       }
@@ -342,7 +339,8 @@ export const useEditor = create<EditorState>((set) => ({
 
   setNumbering: (numbering) => set({ numbering }),
 
-  // 장을 옮기면 되돌리기 목록은 비운다. 다른 장의 사진·글과 뒤섞여 되돌려지는 것을 막으려고.
+  // 장을 옮기는 건 편집이 아니라서 되돌리기에 쌓지 않는다.
+  // 되돌릴 때는 스냅샷에 든 장으로 같이 돌아가므로, 작업이 있던 장이 자동으로 열린다.
   selectSlide: (index) =>
     set((state) => {
       const slides = withLiveSlide(state)
@@ -355,27 +353,21 @@ export const useEditor = create<EditorState>((set) => ({
         image: target.image,
         adjust: target.adjust,
         title: { ...state.title, text: target.text },
-        past: [],
-        future: [],
       }
     }),
 
   addSlide: () =>
-    set((state) => {
-      lastKey = null
-      return {
-        slides: [
-          ...withLiveSlide(state),
-          { image: null, adjust: DEFAULT_ADJUST, text: DEFAULT_TEXT },
-        ],
-        activeSlide: state.slides.length,
-        image: null,
-        adjust: DEFAULT_ADJUST,
-        title: { ...state.title, text: DEFAULT_TEXT },
-        past: [],
-        future: [],
-      }
-    }),
+    set((state) => ({
+      ...record(state, null),
+      slides: [
+        ...withLiveSlide(state),
+        { image: null, adjust: DEFAULT_ADJUST, text: DEFAULT_TEXT },
+      ],
+      activeSlide: state.slides.length,
+      image: null,
+      adjust: DEFAULT_ADJUST,
+      title: { ...state.title, text: DEFAULT_TEXT },
+    })),
 
   removeSlide: (index) =>
     set((state) => {
@@ -388,15 +380,13 @@ export const useEditor = create<EditorState>((set) => ({
             ? state.activeSlide - 1
             : state.activeSlide
       const target = slides[active]
-      lastKey = null
       return {
+        ...record(state, null),
         slides,
         activeSlide: active,
         image: target.image,
         adjust: target.adjust,
         title: { ...state.title, text: target.text },
-        past: [],
-        future: [],
       }
     }),
 
