@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useCustomFonts } from './fontStore'
 import { Section } from './Section'
-import { FONTS } from './store'
+import { FONTS, useEditor } from './store'
 
 const NAME_MAX = 50
 const EXTENSION = /\.(ttf|otf|woff2?)$/i
 
 export function CustomFonts() {
   const { items, busy, error, add, remove } = useCustomFonts()
+  const current = useEditor((state) => state.title.fontFamily)
+  const setTitle = useEditor((state) => state.setTitle)
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
@@ -28,13 +30,36 @@ export function CustomFonts() {
   }
 
   return (
-    <Section title="내 글꼴 (직접 추가)">
-      <ul className="phrases">
+    <Section title="글꼴 (기본 + 직접 추가)">
+      <p className="hint">글꼴을 누르면 제목에 바로 적용됩니다.</p>
+      <p className="font-group">기본 글꼴</p>
+      <ul className="phrases font-list">
+        {FONTS.map((font) => (
+          <li key={font.value}>
+            <button
+              type="button"
+              className={`font-item ${current === font.value ? 'active' : ''}`}
+              style={{ fontFamily: `"${font.value}"` }}
+              onClick={() => setTitle({ fontFamily: font.value })}
+            >
+              {font.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <p className="font-group">내 글꼴</p>
+      <ul className="phrases font-list">
         {items.map((font) => (
           <li key={font.id}>
-            <span className="font-item" style={{ fontFamily: `"${font.name}"` }}>
+            <button
+              type="button"
+              className={`font-item ${current === font.name ? 'active' : ''}`}
+              style={{ fontFamily: `"${font.name}"` }}
+              onClick={() => setTitle({ fontFamily: font.name })}
+            >
               {font.name}
-            </span>
+            </button>
             <button
               type="button"
               disabled={busy}

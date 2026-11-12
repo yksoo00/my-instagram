@@ -1,13 +1,13 @@
 import { CustomFonts } from './CustomFonts'
-import { useCustomFonts } from './fontStore'
 import { ColorField, Field, Slider, Toggle } from './Fields'
+import { FontPicker } from './FontPicker'
 import { ReferenceImport } from './ReferenceImport'
 import { Phrases } from './Phrases'
 import { Projects } from './Projects'
 import { Section } from './Section'
 import { ZOOM_MAX, ZOOM_MIN } from './stage'
 import { Templates } from './Templates'
-import { CANVAS_WIDTH, FONTS, RATIOS, coverScale, useEditor } from './store'
+import { CANVAS_WIDTH, RATIOS, coverScale, useEditor } from './store'
 import type { RatioKey, TitleAlign } from './store'
 
 const ALIGNS: { value: TitleAlign; label: string }[] = [
@@ -33,11 +33,6 @@ export function Panel() {
     setAdjust,
     setFooter,
   } = useEditor()
-
-  const customFonts = useCustomFonts((state) => state.items)
-  const isKnownFont =
-    FONTS.some((font) => font.value === title.fontFamily) ||
-    customFonts.some((font) => font.name === title.fontFamily)
 
   const cover = image ? coverScale(image.element, ratio) : 1
   const zoom = image ? image.scale / cover : 1
@@ -105,27 +100,10 @@ export function Panel() {
         />
         <p className="hint">*단어*처럼 별표로 감싸면 강조 색으로 칠합니다.</p>
         <Field label="글꼴">
-          <select
+          <FontPicker
             value={title.fontFamily}
-            onChange={(event) => setTitle({ fontFamily: event.target.value })}
-          >
-            {FONTS.map((font) => (
-              <option key={font.value} value={font.value}>
-                {font.label}
-              </option>
-            ))}
-            {customFonts.length > 0 && (
-              <optgroup label="내 글꼴">
-                {customFonts.map((font) => (
-                  <option key={font.id} value={font.name}>
-                    {font.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {/* 템플릿·프로젝트가 지운 글꼴을 가리키면 select 가 빈 칸이 되지 않게 이름을 그대로 보여 준다. */}
-            {!isKnownFont && <option value={title.fontFamily}>{title.fontFamily} (없음)</option>}
-          </select>
+            onChange={(fontFamily) => setTitle({ fontFamily })}
+          />
         </Field>
         <div className="segmented">
           {ALIGNS.map((align) => (
