@@ -36,7 +36,38 @@ describe('사진 맞춤', () => {
   })
 
   it('coverScale 은 가로·세로 중 더 큰 배율', () => {
-    expect(coverScale(fakeImage(540, 1350), '4:5')).toBe(2)
+    expect(coverScale({ element: fakeImage(540, 1350), crop: null }, '4:5')).toBe(2)
+  })
+})
+
+describe('자르기', () => {
+  it('자른 영역 크기로 캔버스를 덮게 다시 맞춘다', () => {
+    const state = useEditor.getState
+    state().setImage(fakeImage(2000, 1000), new Blob())
+    // 4:5(1080x1350). 원본 전체는 세로를 맞춰 배율 1.35, 자른 정사각형 1000x1000 은 가로·세로 중 큰 1.35
+    state().setCrop({ x: 500, y: 0, width: 1000, height: 1000 })
+    expect(state().image!.crop).toEqual({ x: 500, y: 0, width: 1000, height: 1000 })
+    expect(state().image!.scale).toBeCloseTo(1.35)
+    expect(state().image!.x).toBeCloseTo((1080 - 1000 * 1.35) / 2)
+  })
+
+  it('해제하면 원본 전체로 돌아가고, 되돌리기도 된다', () => {
+    const state = useEditor.getState
+    state().setImage(fakeImage(2000, 1000), new Blob())
+    state().setCrop({ x: 0, y: 0, width: 500, height: 500 })
+    state().setCrop(null)
+    expect(state().image!.crop).toBeNull()
+    state().undo()
+    expect(state().image!.crop).toEqual({ x: 0, y: 0, width: 500, height: 500 })
+  })
+
+  it('비율을 바꿔도 자른 영역이 유지된다', () => {
+    const state = useEditor.getState
+    state().setImage(fakeImage(2000, 1000), new Blob())
+    state().setCrop({ x: 0, y: 0, width: 600, height: 600 })
+    state().setRatio('1:1')
+    expect(state().image!.crop).toEqual({ x: 0, y: 0, width: 600, height: 600 })
+    expect(state().image!.scale).toBeCloseTo(1080 / 600)
   })
 })
 

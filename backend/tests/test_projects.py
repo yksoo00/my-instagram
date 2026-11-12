@@ -15,7 +15,13 @@ PROJECT_DATA = {
     "numbering": True,
     "slides": [
         {
-            "image": {"file": IMAGE_NAME, "x": -10.5, "y": 0, "scale": 1.2},
+            "image": {
+                "file": IMAGE_NAME,
+                "x": -10.5,
+                "y": 0,
+                "scale": 1.2,
+                "crop": {"x": 10, "y": 20, "width": 500, "height": 400},
+            },
             "adjust": {"brightness": 0.1, "contrast": -5},
             "text": "첫 장",
         },
@@ -90,3 +96,21 @@ def test_project_rejects_invalid_input(client):
     assert post(lambda d: d["slides"][0]["image"].update(file="../../etc/passwd")) == 422
     assert post(lambda d: d["slides"][0]["image"].update(scale=0)) == 422
     assert post(lambda d: d["slides"][0].update(text="가" * 501)) == 422
+
+
+def test_project_crop_is_optional_and_validated(client):
+    # 자르기가 생기기 전에 저장한 프로젝트는 crop 이 없어도 읽히고 None 으로 채워진다
+    old = copy.deepcopy(PROJECT_DATA)
+    del old["slides"][0]["image"]["crop"]
+    saved = client.post("/api/projects", json={"name": "옛것", "data": old}).json()
+    loaded = client.get(f"/api/projects/{saved['id']}").json()["data"]
+    assert loaded["slides"][0]["image"]["crop"] is None
+
+    def post(crop):
+        data = copy.deepcopy(PROJECT_DATA)
+        data["slides"][0]["image"]["crop"] = crop
+        return client.post("/api/projects", json={"name": "x", "data": data}).status_code
+
+    assert post({"x": 0, "y": 0, "width": 0, "height": 10}) == 422
+    assert post({"x": -1, "y": 0, "width": 10, "height": 10}) == 422
+    assert post({"x": 0, "y": 0, "width": 10, "height": 10, "extra": 1}) == 422

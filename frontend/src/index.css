@@ -683,6 +683,91 @@ input[type='color']::-webkit-color-swatch {
   max-height: 160px;
 }
 
+/* 자르기 창 */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(20, 24, 32, 0.55);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: 18px 20px;
+  background: var(--bg-panel);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(20, 30, 50, 0.4);
+}
+
+.modal h2 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-strong);
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crop-stage {
+  position: relative;
+  align-self: center;
+  user-select: none;
+  touch-action: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.crop-stage canvas {
+  display: block;
+}
+
+.crop-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.crop-shade {
+  position: absolute;
+  background: rgba(10, 14, 20, 0.6);
+  pointer-events: none;
+}
+
+.crop-box {
+  position: absolute;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  cursor: move;
+}
+
+.crop-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+}
+
+.crop-handle-nw { left: -7px; top: -7px; cursor: nwse-resize; }
+.crop-handle-n { left: calc(50% - 6px); top: -7px; cursor: ns-resize; }
+.crop-handle-ne { right: -7px; top: -7px; cursor: nesw-resize; }
+.crop-handle-e { right: -7px; top: calc(50% - 6px); cursor: ew-resize; }
+.crop-handle-se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.crop-handle-s { left: calc(50% - 6px); bottom: -7px; cursor: ns-resize; }
+.crop-handle-sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.crop-handle-w { left: -7px; top: calc(50% - 6px); cursor: ew-resize; }
+
 /* 검색되는 글꼴 선택 */
 
 .font-picker {

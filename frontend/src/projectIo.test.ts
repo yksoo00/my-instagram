@@ -11,7 +11,7 @@ const initial = useEditor.getState()
 const upload = vi.mocked(api.uploadImage)
 
 function image(blob: Blob) {
-  return { element: {} as HTMLImageElement, blob, x: 1, y: 2, scale: 3 }
+  return { element: {} as HTMLImageElement, blob, crop: null, x: 1, y: 2, scale: 3 }
 }
 
 beforeEach(() => {
@@ -31,7 +31,7 @@ describe('buildProjectData', () => {
     const data = await buildProjectData()
     expect(data.slides).toEqual([
       {
-        image: { file: `${'a'.repeat(31)}1.png`, x: 1, y: 2, scale: 3 },
+        image: { file: `${'a'.repeat(31)}1.png`, x: 1, y: 2, scale: 3, crop: null },
         adjust: { brightness: 0, contrast: 0 },
         text: '첫 장',
       },

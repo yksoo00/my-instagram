@@ -7,6 +7,7 @@ import {
   TITLE_PADDING,
   coverScale,
   gridInset,
+  sourceSize,
   useEditor,
 } from './store'
 
@@ -53,13 +54,18 @@ function Photo() {
       node.contrast(contrast)
     }
     node.getLayer()?.batchDraw()
-  }, [element, brightness, contrast])
+  }, [element, image?.crop, brightness, contrast])
 
   if (!image) return null
+  const { width, height } = sourceSize(image)
   return (
     <KonvaImage
       ref={nodeRef}
       image={image.element}
+      // Konva 는 crop 만으로 크기를 줄이지 않으므로 자른 영역 크기를 직접 준다.
+      crop={image.crop ?? undefined}
+      width={width}
+      height={height}
       x={image.x}
       y={image.y}
       scaleX={image.scale}
@@ -216,7 +222,7 @@ export function Canvas() {
     event.evt.preventDefault()
     const pointer = event.target.getStage()?.getPointerPosition()
     if (!image || !pointer) return
-    const cover = coverScale(image.element, ratio)
+    const cover = coverScale(image, ratio)
     const next = image.scale * (event.evt.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)
     const clamped = Math.min(cover * ZOOM_MAX, Math.max(cover * ZOOM_MIN, next))
     zoomImage(clamped, pointer.x / displayScale, pointer.y / displayScale)

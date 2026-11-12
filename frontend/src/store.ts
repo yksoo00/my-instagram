@@ -19,13 +19,35 @@ export const FONTS = [
   { value: 'Impact', label: 'Impact' },
 ] as const
 
+/** 원본 사진에서 남길 영역(원본 픽셀 단위). 원본은 그대로 두고 보이는 부분만 정한다. */
+export interface CropRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface ImageState {
   element: HTMLImageElement
   /** 올린 원본 파일. 프로젝트로 저장할 때 서버에 올린다. */
   blob: Blob
+  /** 자른 영역. null 이면 원본 전체 */
+  crop: CropRect | null
+  /** 자른 영역의 왼쪽 위가 놓인 캔버스 좌표 */
   x: number
   y: number
+  /** 자른 영역 기준 배율 */
   scale: number
+}
+
+/** 화면에 쓰이는 원본 쪽 크기. 자르기가 있으면 자른 영역 크기. */
+export function sourceSize(image: Pick<ImageState, 'element' | 'crop'>): {
+  width: number
+  height: number
+} {
+  return image.crop
+    ? { width: image.crop.width, height: image.crop.height }
+    : { width: image.element.naturalWidth, height: image.element.naturalHeight }
 }
 
 export interface GradientState {
@@ -148,6 +170,8 @@ interface EditorState extends Snapshot {
   redo: () => void
   setRatio: (ratio: RatioKey) => void
   setImage: (element: HTMLImageElement, blob: Blob) => void
+  /** 자르기를 바꾸고 새 영역에 맞춰 다시 배치한다. null 이면 자르기 해제. */
+  setCrop: (crop: CropRect | null) => void
   moveImage: (x: number, y: number) => void
   zoomImage: (scale: number, originX: number, originY: number) => void
   fitImage: () => void
@@ -157,22 +181,25 @@ interface EditorState extends Snapshot {
 }
 
 /** 캔버스를 빈틈 없이 덮는 최소 배율 */
-export function coverScale(element: HTMLImageElement, ratio: RatioKey): number {
-  return Math.max(
-    CANVAS_WIDTH / element.naturalWidth,
-    RATIOS[ratio] / element.naturalHeight,
-  )
+export function coverScale(image: Pick<ImageState, 'element' | 'crop'>, ratio: RatioKey): number {
+  const { width, height } = sourceSize(image)
+  return Math.max(CANVAS_WIDTH / width, RATIOS[ratio] / height)
 }
 
-function fit(source: Pick<ImageState, 'element' | 'blob'>, ratio: RatioKey): ImageState {
-  const { element, blob } = source
-  const scale = coverScale(element, ratio)
+function fit(
+  source: Pick<ImageState, 'element' | 'blob' | 'crop'>,
+  ratio: RatioKey,
+): ImageState {
+  const { element, blob, crop } = source
+  const scale = coverScale(source, ratio)
+  const { width, height } = sourceSize(source)
   return {
     element,
     blob,
+    crop,
     scale,
-    x: (CANVAS_WIDTH - element.naturalWidth * scale) / 2,
-    y: (RATIOS[ratio] - element.naturalHeight * scale) / 2,
+    x: (CANVAS_WIDTH - width * scale) / 2,
+    y: (RATIOS[ratio] - height * scale) / 2,
   }
 }
 
@@ -306,9 +333,16 @@ export const useEditor = create<EditorState>((set) => ({
   setImage: (element, blob) =>
     set((state) => ({
       ...record(state, null),
-      image: fit({ element, blob }, state.ratio),
+      image: fit({ element, blob, crop: null }, state.ratio),
       error: null,
     })),
+
+  setCrop: (crop) =>
+    set((state) =>
+      state.image
+        ? { ...record(state, null), image: fit({ ...state.image, crop }, state.ratio) }
+        : {},
+    ),
 
   moveImage: (x, y) =>
     set((state) =>

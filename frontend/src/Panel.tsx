@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { CropDialog } from './CropDialog'
 import { CustomFonts } from './CustomFonts'
 import { ColorField, Field, Slider, Toggle } from './Fields'
 import { FontPicker } from './FontPicker'
@@ -34,7 +36,8 @@ export function Panel() {
     setFooter,
   } = useEditor()
 
-  const cover = image ? coverScale(image.element, ratio) : 1
+  const [cropping, setCropping] = useState(false)
+  const cover = image ? coverScale(image, ratio) : 1
   const zoom = image ? image.scale / cover : 1
 
   return (
@@ -71,9 +74,15 @@ export function Panel() {
           disabled={!image}
           onChange={(contrast) => setAdjust({ contrast })}
         />
-        <button type="button" disabled={!image} onClick={fitImage}>
-          화면에 맞춤
-        </button>
+        <div className="segmented">
+          <button type="button" disabled={!image} onClick={fitImage}>
+            화면에 맞춤
+          </button>
+          <button type="button" disabled={!image} onClick={() => setCropping(true)}>
+            자르기{image?.crop ? ' (적용됨)' : ''}
+          </button>
+        </div>
+        {cropping && <CropDialog onClose={() => setCropping(false)} />}
         <p className="hint">사진을 끌어 옮기고, 휠로 확대·축소합니다.</p>
       </Section>
 

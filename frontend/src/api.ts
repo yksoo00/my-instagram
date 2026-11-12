@@ -21,7 +21,14 @@ export interface ProjectData {
   footer: FooterState
   numbering: boolean
   slides: {
-    image: { file: string; x: number; y: number; scale: number } | null
+    image: {
+      file: string
+      x: number
+      y: number
+      scale: number
+      /** 예전에 저장한 프로젝트에는 없다 */
+      crop?: { x: number; y: number; width: number; height: number } | null
+    } | null
     adjust: AdjustState
     text: string
   }[]

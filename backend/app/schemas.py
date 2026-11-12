@@ -49,12 +49,23 @@ class TemplateSettings(Strict):
     footer: Footer = Footer(text="", fontSize=32)
 
 
+class Crop(Strict):
+    """원본 사진에서 남길 영역(원본 픽셀). 원본 파일은 자르지 않는다."""
+
+    x: float = Field(ge=0, le=100000)
+    y: float = Field(ge=0, le=100000)
+    width: float = Field(gt=0, le=100000)
+    height: float = Field(gt=0, le=100000)
+
+
 class SlideImage(Strict):
     # 업로드 API 가 만든 이름만 받는다. 이 모양이라 경로 조작 문자가 들어올 수 없다.
     file: str = Field(pattern=r"^[0-9a-f]{32}\.(png|jpg)$")
     x: float = Field(ge=-100000, le=100000)
     y: float = Field(ge=-100000, le=100000)
     scale: float = Field(gt=0, le=100)
+    # 자르기가 생기기 전에 저장한 프로젝트도 읽을 수 있게 기본값을 둔다.
+    crop: Crop | None = None
 
 
 class Adjust(Strict):

@@ -23,7 +23,13 @@ export async function buildProjectData(): Promise<ProjectData> {
     const image = slide.image
     slides.push({
       image: image
-        ? { file: await serverFile(image), x: image.x, y: image.y, scale: image.scale }
+        ? {
+            file: await serverFile(image),
+            x: image.x,
+            y: image.y,
+            scale: image.scale,
+            crop: image.crop,
+          }
         : null,
       adjust: slide.adjust,
       text: slide.text,
@@ -69,8 +75,12 @@ export async function openProject(id: number): Promise<void> {
     data.slides.map(async (slide) => {
       if (!slide.image) return { image: null, adjust: slide.adjust, text: slide.text }
       const { element, blob } = await loadFile(slide.image.file)
-      const { x, y, scale } = slide.image
-      return { image: { element, blob, x, y, scale }, adjust: slide.adjust, text: slide.text }
+      const { x, y, scale, crop } = slide.image
+      return {
+        image: { element, blob, crop: crop ?? null, x, y, scale },
+        adjust: slide.adjust,
+        text: slide.text,
+      }
     }),
   )
   replaceProject({
