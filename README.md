@@ -20,4 +20,11 @@ py -m venv .venv
 # 프론트 (frontend/)
 pnpm install
 pnpm dev                                                # :5173
+pnpm test                                               # Vitest
 ```
+
+편집과 PNG 저장은 프론트만으로 된다. 템플릿과 내 문구 저장에는 백엔드가 떠 있어야 한다 (Vite 가 `/api` 를 8000 으로 넘긴다).
+
+## 글꼴
+
+Pretendard, Black Han Sans, Do Hyeon 을 같이 묶는다 (모두 SIL OFL). 나머지는 Windows 기본 글꼴이다.

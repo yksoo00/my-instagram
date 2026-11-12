@@ -6,7 +6,11 @@ export const RATIOS = { '4:5': 1350, '1:1': 1080, '9:16': 1920 } as const
 export type RatioKey = keyof typeof RATIOS
 export const TITLE_PADDING = 80
 
+// 위 3개는 같이 묶어 배포하는 웹폰트(fonts.ts), 나머지는 Windows 기본 글꼴.
 export const FONTS = [
+  { value: 'Pretendard', label: 'Pretendard' },
+  { value: 'Black Han Sans', label: '검은고딕' },
+  { value: 'Do Hyeon', label: '도현' },
   { value: 'Malgun Gothic', label: '맑은 고딕' },
   { value: 'Gulim', label: '굴림' },
   { value: 'Batang', label: '바탕' },
@@ -36,6 +40,8 @@ export interface TitleState {
   fontSize: number
   bold: boolean
   color: string
+  /** 제목에서 *별표*로 감싼 부분의 색 */
+  accentColor: string
   align: TitleAlign
   y: number
   lineHeight: number
@@ -54,10 +60,18 @@ interface Snapshot {
   title: TitleState
 }
 
+/** 템플릿으로 저장하는 값. 사진과 제목 글은 게시물마다 달라서 뺀다. */
+export interface TemplateSettings {
+  ratio: RatioKey
+  gradient: GradientState
+  title: Omit<TitleState, 'text'>
+}
+
 interface EditorState extends Snapshot {
   past: Snapshot[]
   future: Snapshot[]
   error: string | null
+  applyTemplate: (settings: TemplateSettings) => void
   undo: () => void
   redo: () => void
   setRatio: (ratio: RatioKey) => void
@@ -158,6 +172,7 @@ export const useEditor = create<EditorState>((set) => ({
     fontSize: 84,
     bold: true,
     color: '#ffffff',
+    accentColor: '#ffd400',
     align: 'center',
     y: RATIOS[DEFAULT_RATIO] - 320,
     lineHeight: 1.25,
@@ -231,7 +246,22 @@ export const useEditor = create<EditorState>((set) => ({
     })),
 
   setError: (error) => set({ error }),
+
+  applyTemplate: (settings) =>
+    set((state) => ({
+      ...record(state, null),
+      ratio: settings.ratio,
+      image: state.image ? fit(state.image.element, settings.ratio) : null,
+      gradient: settings.gradient,
+      title: { ...settings.title, text: state.title.text },
+    })),
 }))
+
+export function currentTemplateSettings(): TemplateSettings {
+  const { ratio, gradient, title } = useEditor.getState()
+  const { text: _text, ...style } = title
+  return { ratio, gradient, title: style }
+}
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png']
 

@@ -1,5 +1,6 @@
 import { Phrases } from './Phrases'
 import { ZOOM_MAX, ZOOM_MIN, exportPng } from './stage'
+import { Templates } from './Templates'
 import {
   CANVAS_WIDTH,
   FONTS,
@@ -135,6 +136,7 @@ export function Panel() {
           value={title.text}
           onChange={(event) => setTitle({ text: event.target.value })}
         />
+        <p className="hint">*단어*처럼 별표로 감싸면 강조 색으로 칠합니다.</p>
         <label>
           글꼴
           <select
@@ -220,6 +222,14 @@ export function Panel() {
             />
           </label>
           <label className="inline">
+            강조 색
+            <input
+              type="color"
+              value={title.accentColor}
+              onChange={(event) => setTitle({ accentColor: event.target.value })}
+            />
+          </label>
+          <label className="inline">
             <input
               type="checkbox"
               checked={title.bold}
@@ -244,6 +254,8 @@ export function Panel() {
       </section>
 
       <Phrases />
+
+      <Templates />
 
       <button type="button" className="primary" disabled={!image} onClick={exportPng}>
         PNG 저장

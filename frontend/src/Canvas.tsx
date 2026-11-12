@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Image as KonvaImage, Layer, Rect, Stage, Text } from 'react-konva'
+import { Group, Image as KonvaImage, Layer, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
 import {
   CANVAS_WIDTH,
@@ -10,11 +10,93 @@ import {
 } from './store'
 
 import { ZOOM_MAX, ZOOM_MIN, stageRef } from './stage'
+import { layoutTitle } from './titleLayout'
 
 const ZOOM_STEP = 1.05
 
+let measureContext: CanvasRenderingContext2D | null = null
+
+function measureWith(font: string): (text: string) => number {
+  measureContext ??= document.createElement('canvas').getContext('2d')
+  const context = measureContext
+  if (!context) return () => 0
+  return (text) => {
+    context.font = font
+    return context.measureText(text).width
+  }
+}
+
+function Title({ displayScale }: { displayScale: number }) {
+  const title = useEditor((state) => state.title)
+  const setTitle = useEditor((state) => state.setTitle)
+  const [loadedFonts, setLoadedFonts] = useState(0)
+
+  const fontStyle = title.bold ? 'bold' : 'normal'
+  const font = `${fontStyle} ${title.fontSize}px "${title.fontFamily}"`
+  // 웹폰트는 쓰는 글자의 파일만 그때그때 받는다. 받기 전에 잰 폭은 틀리므로 다 받으면 다시 그린다.
+  const fontRequest = `${fontStyle} 16px "${title.fontFamily}"`
+  useEffect(() => {
+    if (document.fonts.check(fontRequest, title.text)) return
+    let cancelled = false
+    void document.fonts.load(fontRequest, title.text).then(() => {
+      if (!cancelled) setLoadedFonts((count) => count + 1)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fontRequest, title.text])
+
+  const { segments } = layoutTitle(title.text, {
+    maxWidth: CANVAS_WIDTH - TITLE_PADDING * 2,
+    fontSize: title.fontSize,
+    lineHeight: title.lineHeight,
+    letterSpacing: title.letterSpacing,
+    align: title.align,
+    measure: measureWith(font),
+  })
+
+  return (
+    <Group
+      // 글꼴이 도착하면 Konva 가 기억해 둔 글자 폭도 버려야 해서 통째로 다시 만든다.
+      key={loadedFonts}
+      x={TITLE_PADDING}
+      y={title.y}
+      draggable
+      // 제목은 위아래로만 옮긴다. dragBoundFunc 는 화면 좌표라서 배율을 곱한다.
+      dragBoundFunc={(position) => ({ x: TITLE_PADDING * displayScale, y: position.y })}
+      onDragEnd={(event) => setTitle({ y: event.target.y() })}
+    >
+      {segments.map((segment, index) => (
+        <Text
+          key={index}
+          text={segment.text}
+          x={segment.x}
+          y={segment.y}
+          fontFamily={title.fontFamily}
+          fontSize={title.fontSize}
+          fontStyle={fontStyle}
+          fill={segment.emphasis ? title.accentColor : title.color}
+          lineHeight={title.lineHeight}
+          letterSpacing={title.letterSpacing}
+          stroke={title.strokeColor}
+          strokeWidth={title.strokeWidth}
+          strokeEnabled={title.strokeWidth > 0}
+          // 외곽선을 먼저 그리고 글자를 덮어야 획이 글자를 파먹지 않는다.
+          fillAfterStrokeEnabled
+          lineJoin="round"
+          shadowEnabled={title.shadow}
+          shadowColor="#000000"
+          shadowBlur={16}
+          shadowOffsetY={4}
+          shadowOpacity={0.6}
+        />
+      ))}
+    </Group>
+  )
+}
+
 export function Canvas() {
-  const { ratio, image, gradient, title, moveImage, zoomImage, setTitle } = useEditor()
+  const { ratio, image, gradient, moveImage, zoomImage } = useEditor()
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [area, setArea] = useState({ width: 0, height: 0 })
 
@@ -85,37 +167,7 @@ export function Canvas() {
                 ]}
                 listening={false}
               />
-              <Text
-                text={title.text}
-                x={TITLE_PADDING}
-                y={title.y}
-                width={CANVAS_WIDTH - TITLE_PADDING * 2}
-                fontFamily={title.fontFamily}
-                fontSize={title.fontSize}
-                fontStyle={title.bold ? 'bold' : 'normal'}
-                fill={title.color}
-                align={title.align}
-                lineHeight={title.lineHeight}
-                letterSpacing={title.letterSpacing}
-                stroke={title.strokeColor}
-                strokeWidth={title.strokeWidth}
-                strokeEnabled={title.strokeWidth > 0}
-                // 외곽선을 먼저 그리고 글자를 덮어야 획이 글자를 파먹지 않는다.
-                fillAfterStrokeEnabled
-                lineJoin="round"
-                shadowEnabled={title.shadow}
-                shadowColor="#000000"
-                shadowBlur={16}
-                shadowOffsetY={4}
-                shadowOpacity={0.6}
-                draggable
-                // 제목은 위아래로만 옮긴다. dragBoundFunc 는 화면 좌표라서 배율을 곱한다.
-                dragBoundFunc={(position) => ({
-                  x: TITLE_PADDING * displayScale,
-                  y: position.y,
-                })}
-                onDragEnd={(event) => setTitle({ y: event.target.y() })}
-              />
+              <Title displayScale={displayScale} />
             </Layer>
           </Stage>
           {!image && (

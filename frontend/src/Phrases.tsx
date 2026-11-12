@@ -1,49 +1,69 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { api, errorMessage } from './api'
+import type { SavedPhrase } from './api'
 import library from './phrases.json'
 import { useEditor } from './store'
 
 const MY_CATEGORY = '내 문구'
 const TOPIC_SLOT = '{주제}'
 const TOPIC_PLACEHOLDER = '○○'
+const PHRASE_MAX = 100
 
 interface MyPhrasesState {
-  phrases: string[]
-  add: (phrase: string) => void
-  remove: (phrase: string) => void
+  items: SavedPhrase[]
+  error: string | null
+  load: () => Promise<void>
+  add: (text: string) => Promise<void>
+  remove: (id: number) => Promise<void>
 }
 
-// 내 문구는 이 브라우저에만 남는다. 백엔드 저장을 붙이면 그쪽으로 옮긴다.
-const useMyPhrases = create<MyPhrasesState>()(
-  persist(
-    (set) => ({
-      phrases: [],
-      add: (phrase) =>
-        set((state) =>
-          state.phrases.includes(phrase) ? {} : { phrases: [phrase, ...state.phrases] },
-        ),
-      remove: (phrase) =>
-        set((state) => ({ phrases: state.phrases.filter((item) => item !== phrase) })),
-    }),
-    { name: 'my-phrases' },
-  ),
-)
+const useMyPhrases = create<MyPhrasesState>((set, get) => ({
+  items: [],
+  error: null,
+  load: async () => {
+    try {
+      set({ items: await api.listPhrases(), error: null })
+    } catch (error) {
+      set({ error: errorMessage(error) })
+    }
+  },
+  add: async (text) => {
+    try {
+      await api.savePhrase(text)
+      await get().load()
+    } catch (error) {
+      set({ error: errorMessage(error) })
+    }
+  },
+  remove: async (id) => {
+    try {
+      await api.deletePhrase(id)
+      await get().load()
+    } catch (error) {
+      set({ error: errorMessage(error) })
+    }
+  },
+}))
 
 export function Phrases() {
   const titleText = useEditor((state) => state.title.text)
   const setTitle = useEditor((state) => state.setTitle)
-  const myPhrases = useMyPhrases()
+  const { items, error, load, add, remove } = useMyPhrases()
   const [category, setCategory] = useState(library[0].category)
   const [topic, setTopic] = useState('')
 
+  useEffect(() => {
+    void load()
+  }, [load])
+
   const isMine = category === MY_CATEGORY
-  const phrases = isMine
-    ? myPhrases.phrases
-    : (library.find((item) => item.category === category)?.phrases ?? [])
   const fill = (phrase: string) =>
     phrase.replaceAll(TOPIC_SLOT, topic.trim() || TOPIC_PLACEHOLDER)
+  const libraryPhrases = library.find((item) => item.category === category)?.phrases ?? []
   const currentText = titleText.trim()
+  const tooLong = currentText.length > PHRASE_MAX
+  const alreadySaved = items.some((item) => item.text === currentText)
 
   return (
     <section>
@@ -72,34 +92,43 @@ export function Phrases() {
         </label>
       )}
       <ul className="phrases">
-        {phrases.map((phrase) => (
-          <li key={phrase}>
-            <button type="button" onClick={() => setTitle({ text: fill(phrase) })}>
-              {fill(phrase)}
-            </button>
-            {isMine && (
-              <button
-                type="button"
-                className="remove"
-                aria-label={`"${phrase}" 삭제`}
-                onClick={() => myPhrases.remove(phrase)}
-              >
-                ×
-              </button>
-            )}
-          </li>
-        ))}
+        {isMine
+          ? items.map((item) => (
+              <li key={item.id}>
+                <button type="button" onClick={() => setTitle({ text: item.text })}>
+                  {item.text}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`"${item.text}" 삭제`}
+                  onClick={() => void remove(item.id)}
+                >
+                  ×
+                </button>
+              </li>
+            ))
+          : libraryPhrases.map((phrase) => (
+              <li key={phrase}>
+                <button type="button" onClick={() => setTitle({ text: fill(phrase) })}>
+                  {fill(phrase)}
+                </button>
+              </li>
+            ))}
       </ul>
-      {isMine && phrases.length === 0 && (
+      {isMine && items.length === 0 && !error && (
         <p className="hint">아직 저장한 문구가 없습니다.</p>
       )}
       <button
         type="button"
-        disabled={!currentText || myPhrases.phrases.includes(currentText)}
-        onClick={() => myPhrases.add(currentText)}
+        disabled={!currentText || tooLong || alreadySaved}
+        onClick={() => void add(currentText)}
       >
         지금 제목을 내 문구에 저장
       </button>
+      {tooLong && (
+        <p className="error">내 문구는 {PHRASE_MAX}자까지 저장할 수 있습니다.</p>
+      )}
+      {error && <p className="error">{error}</p>}
     </section>
   )
 }
