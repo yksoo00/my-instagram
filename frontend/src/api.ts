@@ -27,6 +27,8 @@ export interface ProjectData {
       y: number
       scale: number
       /** 예전에 저장한 프로젝트에는 없다 */
+      stretchX?: number
+      stretchY?: number
       crop?: { x: number; y: number; width: number; height: number } | null
     } | null
     adjust: AdjustState

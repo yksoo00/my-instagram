@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Group, Image as KonvaImage, Layer, Rect, Stage, Text } from 'react-konva'
+import { Group, Image as KonvaImage, Layer, Rect, Stage, Text, Transformer } from 'react-konva'
 import Konva from 'konva'
 import {
   CANVAS_WIDTH,
@@ -15,7 +15,7 @@ import {
 import { useCustomFonts } from './fontStore'
 import { OpenImage } from './Fields'
 import { Icon } from './Icon'
-import { stageRef } from './stage'
+import { photoNodeRef, stageRef } from './stage'
 import { layoutTitle } from './titleLayout'
 
 const ZOOM_STEP = 1.05
@@ -38,7 +38,8 @@ function Photo() {
   const image = useEditor((state) => state.image)
   const { brightness, contrast } = useEditor((state) => state.adjust)
   const moveImage = useEditor((state) => state.moveImage)
-  const nodeRef = useRef<Konva.Image>(null)
+  const setPhotoSelected = useEditor((state) => state.setPhotoSelected)
+  const nodeRef = useRef<Konva.Image | null>(null)
   const element = image?.element
 
   // Konva 필터는 캐시한 그림에만 적용된다. 보정이 0 이면 캐시를 풀어 원본 화질로 그린다.
@@ -61,7 +62,10 @@ function Photo() {
   const { width, height } = sourceSize(image)
   return (
     <KonvaImage
-      ref={nodeRef}
+      ref={(node) => {
+        nodeRef.current = node
+        photoNodeRef.current = node // 위쪽 손잡이 층(PhotoTransformer)이 이 노드를 잡는다
+      }}
       image={image.element}
       // Konva 는 crop 만으로 크기를 줄이지 않으므로 자른 영역 크기를 직접 준다.
       crop={image.crop ?? undefined}
@@ -69,10 +73,67 @@ function Photo() {
       height={height}
       x={image.x}
       y={image.y}
-      scaleX={image.scale}
-      scaleY={image.scale}
+      scaleX={image.scale * image.stretchX}
+      scaleY={image.scale * image.stretchY}
       draggable
+      onClick={() => setPhotoSelected(true)}
+      onTap={() => setPhotoSelected(true)}
       onDragEnd={(event) => moveImage(event.target.x(), event.target.y())}
+    />
+  )
+}
+
+/**
+ * 사진을 눌렀을 때 나오는 크기 손잡이. 모서리는 비율을 유지한 채 키우고,
+ * 위·아래·좌·우 변은 그 방향만 늘이거나 줄인다. 저장 그림에는 들어가지 않는다(stage.ts 에서 숨김).
+ */
+function PhotoTransformer() {
+  const selected = useEditor((state) => state.photoSelected)
+  const image = useEditor((state) => state.image)
+  const transformImage = useEditor((state) => state.transformImage)
+  const transformerRef = useRef<Konva.Transformer>(null)
+
+  useEffect(() => {
+    const transformer = transformerRef.current
+    const node = photoNodeRef.current
+    if (!transformer) return
+    transformer.nodes(selected && node ? [node] : [])
+    transformer.getLayer()?.batchDraw()
+  }, [selected, image])
+
+  if (!image) return null
+  return (
+    <Transformer
+      ref={transformerRef}
+      rotateEnabled={false}
+      flipEnabled={false}
+      anchorSize={11}
+      anchorCornerRadius={2}
+      anchorFill="#ffffff"
+      anchorStroke="#2f7cf6"
+      borderStroke="#2f7cf6"
+      // 너무 작게 줄여 사진이 사라지지 않게 한다 (화면 픽셀 기준)
+      boundBoxFunc={(oldBox, newBox) =>
+        newBox.width < 24 || newBox.height < 24 ? oldBox : newBox
+      }
+      onTransformEnd={() => {
+        const node = photoNodeRef.current
+        if (!node) return
+        const fx = node.scaleX() / (image.scale * image.stretchX)
+        const fy = node.scaleY() / (image.scale * image.stretchY)
+        // 모서리로 끌면 두 방향이 같은 배로 변한다 → 전체 배율로, 변으로 끌면 그 방향 늘이기로 반영
+        if (Math.abs(fx / fy - 1) < 0.002) {
+          transformImage({ x: node.x(), y: node.y(), scale: image.scale * fx, stretchX: image.stretchX, stretchY: image.stretchY })
+        } else {
+          transformImage({
+            x: node.x(),
+            y: node.y(),
+            scale: image.scale,
+            stretchX: image.stretchX * fx,
+            stretchY: image.stretchY * fy,
+          })
+        }
+      }}
     />
   )
 }
@@ -200,7 +261,7 @@ function Title({ displayScale }: { displayScale: number }) {
 }
 
 export function Canvas() {
-  const { ratio, image, gradient, zoomImage, showGuide } = useEditor()
+  const { ratio, image, gradient, zoomImage, showGuide, setPhotoSelected } = useEditor()
   const inset = gridInset(ratio)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [area, setArea] = useState({ width: 0, height: 0 })
@@ -243,6 +304,13 @@ export function Canvas() {
             scaleX={displayScale}
             scaleY={displayScale}
             onWheel={handleWheel}
+            onMouseDown={(event) => {
+              // 사진이나 손잡이가 아닌 곳을 누르면 선택을 푼다
+              const target = event.target
+              const onPhoto =
+                target === photoNodeRef.current || target.getParent() instanceof Konva.Transformer
+              if (!onPhoto) setPhotoSelected(false)
+            }}
           >
             <Layer>
               <Rect width={CANVAS_WIDTH} height={height} fill="#000000" listening={false} />
@@ -266,6 +334,10 @@ export function Canvas() {
               <Footer />
               <Numbering />
               <Title displayScale={displayScale} />
+            </Layer>
+            {/* 손잡이는 제목·그라데이션에 가려지지 않게 맨 위 층에 둔다 */}
+            <Layer>
+              <PhotoTransformer />
             </Layer>
           </Stage>
           {showGuide && (

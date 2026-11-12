@@ -13,6 +13,9 @@ import { UrlImport } from './UrlImport'
 import { CANVAS_WIDTH, RATIOS, ZOOM_MAX, coverScale, useEditor, zoomRange } from './store'
 import type { RatioKey, TitleAlign } from './store'
 
+const STRETCH_MIN = 0.2
+const STRETCH_MAX = 3
+
 const ALIGNS: { value: TitleAlign; label: string }[] = [
   { value: 'left', label: '왼쪽' },
   { value: 'center', label: '가운데' },
@@ -29,6 +32,7 @@ export function Panel() {
     setRatio,
     zoomImage,
     fitImage,
+    stretchImage,
     setGradient,
     setTitle,
     adjust,
@@ -57,6 +61,33 @@ export function Panel() {
           disabled={!image}
           onChange={(value) => zoomImage(value * cover, CANVAS_WIDTH / 2, RATIOS[ratio] / 2)}
         />
+        <Slider
+          label="가로 늘이기"
+          display={`${Math.round((image?.stretchX ?? 1) * 100)}%`}
+          value={image?.stretchX ?? 1}
+          min={STRETCH_MIN}
+          max={STRETCH_MAX}
+          step={0.01}
+          disabled={!image}
+          onChange={(stretchX) => stretchImage({ stretchX })}
+        />
+        <Slider
+          label="세로 늘이기"
+          display={`${Math.round((image?.stretchY ?? 1) * 100)}%`}
+          value={image?.stretchY ?? 1}
+          min={STRETCH_MIN}
+          max={STRETCH_MAX}
+          step={0.01}
+          disabled={!image}
+          onChange={(stretchY) => stretchImage({ stretchY })}
+        />
+        <button
+          type="button"
+          disabled={!image || (image.stretchX === 1 && image.stretchY === 1)}
+          onClick={() => stretchImage({ stretchX: 1, stretchY: 1 })}
+        >
+          원래 비율로
+        </button>
         <Slider
           label="밝기"
           display={String(Math.round(adjust.brightness * 100))}
@@ -90,8 +121,9 @@ export function Panel() {
         </div>
         {cropping && <CropDialog onClose={() => setCropping(false)} />}
         <p className="hint">
-          사진을 끌어 옮기고, 휠이나 슬라이더로 확대·축소합니다. "채우기"는 화면을 꽉 채우고(넘치는
-          부분은 잘림), "전체 보이게"는 사진 전체가 보이게 줄입니다(남는 곳은 검은 바탕).
+          사진을 끌어 옮기고, 휠이나 슬라이더로 확대·축소합니다. 사진을 한 번 누르면 손잡이가 나와
+          모서리는 비율 유지, 위·아래·좌·우 변은 가로 또는 세로만 늘이고 줄일 수 있습니다.
+          "채우기"는 화면을 꽉 채우고(넘치는 부분은 잘림), "전체 보이게"는 사진 전체가 보이게 줄입니다.
         </p>
       </Section>
 

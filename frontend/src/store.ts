@@ -36,8 +36,20 @@ export interface ImageState {
   /** 자른 영역의 왼쪽 위가 놓인 캔버스 좌표 */
   x: number
   y: number
-  /** 자른 영역 기준 배율 */
+  /** 자른 영역 기준 배율(가로·세로 같이) */
   scale: number
+  /** 가로·세로를 따로 늘이거나 줄인 정도. 1 이면 원래 비율. 화면 크기는 scale × stretch. */
+  stretchX: number
+  stretchY: number
+}
+
+/** 화면에 그려지는 사진 크기(캔버스 좌표) */
+export function displaySize(image: Pick<ImageState, 'element' | 'crop' | 'scale' | 'stretchX' | 'stretchY'>): {
+  width: number
+  height: number
+} {
+  const { width, height } = sourceSize(image)
+  return { width: width * image.scale * image.stretchX, height: height * image.scale * image.stretchY }
 }
 
 /** 화면에 쓰이는 원본 쪽 크기. 자르기가 있으면 자른 영역 크기. */
@@ -176,6 +188,13 @@ interface EditorState extends Snapshot {
   zoomImage: (scale: number, originX: number, originY: number) => void
   /** cover: 캔버스를 꽉 채움(넘치는 부분은 잘림), contain: 사진 전체가 보이게 */
   fitImage: (mode?: 'cover' | 'contain') => void
+  /** 가로·세로를 따로 늘이거나 줄인다. 사진 가운데가 제자리에 머문다. */
+  stretchImage: (patch: { stretchX?: number; stretchY?: number }) => void
+  /** 캔버스에서 손잡이로 끈 결과를 한 번에 반영한다(되돌리기 한 단계). */
+  transformImage: (next: { x: number; y: number; scale: number; stretchX: number; stretchY: number }) => void
+  /** 캔버스에서 사진이 선택돼 손잡이가 보이는지. 화면 상태라서 되돌리기·저장 대상이 아니다. */
+  photoSelected: boolean
+  setPhotoSelected: (selected: boolean) => void
   setGradient: (patch: Partial<GradientState>) => void
   setTitle: (patch: Partial<TitleState>) => void
   setError: (error: string | null) => void
@@ -224,6 +243,8 @@ function fit(
     blob,
     crop,
     scale,
+    stretchX: 1,
+    stretchY: 1,
     x: (CANVAS_WIDTH - width * scale) / 2,
     y: (RATIOS[ratio] - height * scale) / 2,
   }
@@ -393,6 +414,35 @@ export const useEditor = create<EditorState>((set) => ({
         },
       }
     }),
+
+  photoSelected: false,
+  setPhotoSelected: (photoSelected) => set({ photoSelected }),
+
+  stretchImage: (patch) =>
+    set((state) => {
+      const image = state.image
+      if (!image) return {}
+      const stretchX = patch.stretchX ?? image.stretchX
+      const stretchY = patch.stretchY ?? image.stretchY
+      const before = displaySize(image)
+      const after = displaySize({ ...image, stretchX, stretchY })
+      return {
+        // 슬라이더를 끄는 동안은 한 단계로 합친다
+        ...record(state, `stretch:${Object.keys(patch).join()}`),
+        image: {
+          ...image,
+          stretchX,
+          stretchY,
+          x: image.x + (before.width - after.width) / 2,
+          y: image.y + (before.height - after.height) / 2,
+        },
+      }
+    }),
+
+  transformImage: (next) =>
+    set((state) =>
+      state.image ? { ...record(state, null), image: { ...state.image, ...next } } : {},
+    ),
 
   fitImage: (mode = 'cover') =>
     set((state) =>

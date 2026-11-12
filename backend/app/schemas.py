@@ -64,8 +64,10 @@ class SlideImage(Strict):
     x: float = Field(ge=-100000, le=100000)
     y: float = Field(ge=-100000, le=100000)
     scale: float = Field(gt=0, le=100)
-    # 자르기가 생기기 전에 저장한 프로젝트도 읽을 수 있게 기본값을 둔다.
+    # 자르기·늘이기가 생기기 전에 저장한 프로젝트도 읽을 수 있게 기본값을 둔다.
     crop: Crop | None = None
+    stretchX: float = Field(default=1, gt=0, le=20)
+    stretchY: float = Field(default=1, gt=0, le=20)
 
 
 class Adjust(Strict):

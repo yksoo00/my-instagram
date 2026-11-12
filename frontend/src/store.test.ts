@@ -3,6 +3,7 @@ import {
   allSlides,
   coverScale,
   currentTemplateSettings,
+  displaySize,
   gridInset,
   useEditor,
   zoomRange,
@@ -38,6 +39,63 @@ describe('사진 맞춤', () => {
 
   it('coverScale 은 가로·세로 중 더 큰 배율', () => {
     expect(coverScale({ element: fakeImage(540, 1350), crop: null }, '4:5')).toBe(2)
+  })
+})
+
+describe('가로·세로 따로 늘이기', () => {
+  const setup = () => {
+    useEditor.getState().setImage(fakeImage(1080, 1350), new Blob())
+    return useEditor.getState
+  }
+
+  it('가로만 늘이면 사진 가운데가 제자리에 머문다', () => {
+    const state = setup()
+    state().stretchImage({ stretchX: 2 })
+    expect(state().image).toMatchObject({ scale: 1, stretchX: 2, stretchY: 1 })
+    // 폭 1080 → 2160, 가운데(540)는 그대로라 왼쪽이 540 만큼 밀림
+    expect(displaySize(state().image!)).toEqual({ width: 2160, height: 1350 })
+    expect(state().image!.x).toBeCloseTo(-540)
+    expect(state().image!.y).toBeCloseTo(0)
+  })
+
+  it('세로만 줄여도 가운데가 제자리에 머문다', () => {
+    const state = setup()
+    state().stretchImage({ stretchY: 0.5 })
+    expect(displaySize(state().image!)).toEqual({ width: 1080, height: 675 })
+    expect(state().image!.y).toBeCloseTo(337.5)
+  })
+
+  it('슬라이더를 끄는 동안은 되돌리기 한 단계로 합친다', () => {
+    const state = setup()
+    const before = state().past.length
+    state().stretchImage({ stretchX: 1.2 })
+    state().stretchImage({ stretchX: 1.4 })
+    state().stretchImage({ stretchX: 1.6 })
+    expect(state().past.length).toBe(before + 1)
+    state().undo()
+    expect(state().image!.stretchX).toBe(1)
+  })
+
+  it('채우기·전체 보이게로 맞추면 늘이기가 풀린다', () => {
+    const state = setup()
+    state().stretchImage({ stretchX: 2, stretchY: 0.5 })
+    state().fitImage('cover')
+    expect(state().image).toMatchObject({ stretchX: 1, stretchY: 1 })
+  })
+
+  it('손잡이로 끈 결과는 한 번에 반영되고 되돌릴 수 있다', () => {
+    const state = setup()
+    state().transformImage({ x: 10, y: 20, scale: 1, stretchX: 1.5, stretchY: 0.8 })
+    expect(state().image).toMatchObject({ x: 10, y: 20, stretchX: 1.5, stretchY: 0.8 })
+    state().undo()
+    expect(state().image).toMatchObject({ stretchX: 1, stretchY: 1 })
+  })
+
+  it('확대(휠·슬라이더)는 늘이기를 유지한 채 전체 크기만 바꾼다', () => {
+    const state = setup()
+    state().stretchImage({ stretchX: 2 })
+    state().zoomImage(2, 540, 675)
+    expect(state().image).toMatchObject({ scale: 2, stretchX: 2, stretchY: 1 })
   })
 })
 

@@ -20,6 +20,8 @@ PROJECT_DATA = {
                 "x": -10.5,
                 "y": 0,
                 "scale": 1.2,
+                "stretchX": 1.5,
+                "stretchY": 0.5,
                 "crop": {"x": 10, "y": 20, "width": 500, "height": 400},
             },
             "adjust": {"brightness": 0.1, "contrast": -5},
@@ -114,3 +116,23 @@ def test_project_crop_is_optional_and_validated(client):
     assert post({"x": 0, "y": 0, "width": 0, "height": 10}) == 422
     assert post({"x": -1, "y": 0, "width": 10, "height": 10}) == 422
     assert post({"x": 0, "y": 0, "width": 10, "height": 10, "extra": 1}) == 422
+
+def test_project_stretch_defaults_to_one_and_is_validated(client):
+    # 늘이기가 생기기 전에 저장한 프로젝트는 stretchX/Y 가 없어도 읽히고 1(원래 비율)로 채워진다
+    old = copy.deepcopy(PROJECT_DATA)
+    del old["slides"][0]["image"]["stretchX"]
+    del old["slides"][0]["image"]["stretchY"]
+    saved = client.post("/api/projects", json={"name": "옛것", "data": old}).json()
+    image = client.get(f"/api/projects/{saved['id']}").json()["data"]["slides"][0]["image"]
+    assert image["stretchX"] == 1
+    assert image["stretchY"] == 1
+
+    def post(**patch):
+        data = copy.deepcopy(PROJECT_DATA)
+        data["slides"][0]["image"].update(patch)
+        return client.post("/api/projects", json={"name": "x", "data": data}).status_code
+
+    assert post(stretchX=0) == 422
+    assert post(stretchY=-1) == 422
+    assert post(stretchX=21) == 422
+    assert post(stretchX=3, stretchY=0.2) == 200

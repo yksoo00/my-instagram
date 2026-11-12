@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Toggle } from './Fields'
 import { Icon } from './Icon'
 import { exportAll } from './stage'
-import { CANVAS_WIDTH, RATIOS, sourceSize, useEditor } from './store'
+import { CANVAS_WIDTH, RATIOS, displaySize, sourceSize, useEditor } from './store'
 import type { RatioKey, SlideData } from './store'
 
 const THUMB_WIDTH = 54
@@ -21,6 +21,7 @@ function Thumb({ slide, ratio }: { slide: SlideData; ratio: RatioKey }) {
     // 편집 좌표(1080 폭)를 썸네일 크기로 줄여 같은 구도로 그린다.
     const k = THUMB_WIDTH / CANVAS_WIDTH
     const size = sourceSize(image)
+    const shown = displaySize(image)
     const crop = image.crop ?? { x: 0, y: 0, ...size }
     context.drawImage(
       image.element,
@@ -30,8 +31,8 @@ function Thumb({ slide, ratio }: { slide: SlideData; ratio: RatioKey }) {
       crop.height,
       image.x * k,
       image.y * k,
-      size.width * image.scale * k,
-      size.height * image.scale * k,
+      shown.width * k,
+      shown.height * k,
     )
   }, [image, height])
 

@@ -28,6 +28,8 @@ export async function buildProjectData(): Promise<ProjectData> {
             x: image.x,
             y: image.y,
             scale: image.scale,
+            stretchX: image.stretchX,
+            stretchY: image.stretchY,
             crop: image.crop,
           }
         : null,
@@ -75,9 +77,19 @@ export async function openProject(id: number): Promise<void> {
     data.slides.map(async (slide) => {
       if (!slide.image) return { image: null, adjust: slide.adjust, text: slide.text }
       const { element, blob } = await loadFile(slide.image.file)
-      const { x, y, scale, crop } = slide.image
+      const { x, y, scale, crop, stretchX, stretchY } = slide.image
       return {
-        image: { element, blob, crop: crop ?? null, x, y, scale },
+        image: {
+          element,
+          blob,
+          crop: crop ?? null,
+          x,
+          y,
+          scale,
+          // 늘이기가 생기기 전에 저장한 프로젝트는 원래 비율(1)로 읽는다
+          stretchX: stretchX ?? 1,
+          stretchY: stretchY ?? 1,
+        },
         adjust: slide.adjust,
         text: slide.text,
       }
