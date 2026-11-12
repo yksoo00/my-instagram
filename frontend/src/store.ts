@@ -542,22 +542,33 @@ export function currentTemplateSettings(): TemplateSettings {
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png']
 
-export function loadImageFile(file: File): void {
+/** JPG·PNG 데이터를 읽어 지금 장의 사진으로 넣는다. 읽지 못하면 오류 문구를 남기고 reject. */
+export function loadImageBlob(blob: Blob): Promise<void> {
   const { setImage, setError } = useEditor.getState()
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob)
+    const element = new Image()
+    element.onload = () => {
+      // 이미 읽어 들인 사진은 주소를 해제해도 계속 그릴 수 있어서, 되돌리기에 남은 이전 사진도 문제없다.
+      URL.revokeObjectURL(url)
+      setImage(element, blob)
+      resolve()
+    }
+    element.onerror = () => {
+      URL.revokeObjectURL(url)
+      setError('이미지를 읽지 못했습니다.')
+      reject(new Error('이미지를 읽지 못했습니다.'))
+    }
+    element.src = url
+  })
+}
+
+export function loadImageFile(file: File): void {
+  const { setError } = useEditor.getState()
   if (!ALLOWED_TYPES.includes(file.type)) {
     setError('JPG 또는 PNG 파일만 올릴 수 있습니다.')
     return
   }
-  const url = URL.createObjectURL(file)
-  const element = new Image()
-  element.onload = () => {
-    // 이미 읽어 들인 사진은 주소를 해제해도 계속 그릴 수 있어서, 되돌리기에 남은 이전 사진도 문제없다.
-    URL.revokeObjectURL(url)
-    setImage(element, file)
-  }
-  element.onerror = () => {
-    URL.revokeObjectURL(url)
-    setError('이미지를 읽지 못했습니다.')
-  }
-  element.src = url
+  // 실패 문구는 loadImageBlob 이 이미 남겼으므로 여기서는 reject 를 삼킨다.
+  void loadImageBlob(file).catch(() => {})
 }

@@ -127,6 +127,10 @@ class ImageOut(BaseModel):
     file: str
 
 
+class RemoteImageIn(Strict):
+    url: str = Field(min_length=1, max_length=2000)
+
+
 class FontOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Canvas } from './Canvas'
 import { useCustomFonts } from './fontStore'
 import { Filmstrip } from './Filmstrip'
+import { importImageFromUrl, looksLikeUrl } from './imageUrl'
 import { Panel } from './Panel'
 import { TopBar } from './TopBar'
 import { loadImageFile, useEditor } from './store'
@@ -19,7 +20,15 @@ function App() {
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
       const file = event.clipboardData?.files[0]
-      if (file) loadImageFile(file)
+      if (file) {
+        loadImageFile(file)
+        return
+      }
+      // 입력칸에 글을 붙여넣는 중이면 건드리지 않는다. 입력칸 밖에서 주소만 붙여넣으면 사진으로 가져온다.
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      const text = event.clipboardData?.getData('text') ?? ''
+      if (looksLikeUrl(text)) void importImageFromUrl(text)
     }
     // 입력칸 안에서도 편집기 되돌리기로 통일한다. 브라우저 기본 되돌리기는 상태와 어긋난다.
     const handleKeyDown = (event: KeyboardEvent) => {

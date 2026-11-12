@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import db
+from app import db, remote_image
 from app.db import DATA_DIR, Base, engine, get_session
 from app.models import Font, Phrase, Project, Template
 from app.schemas import (
@@ -21,6 +21,7 @@ from app.schemas import (
     PhraseIn,
     PhraseOut,
     ProjectIn,
+    RemoteImageIn,
     ProjectOut,
     ProjectSummary,
     TemplateIn,
@@ -118,6 +119,16 @@ async def upload_image(file: UploadFile) -> ImageOut:
     upload_dir.mkdir(parents=True, exist_ok=True)
     (upload_dir / name).write_bytes(content)
     return ImageOut(file=name)
+
+
+@app.post("/api/images/fetch")
+def fetch_remote_image(body: RemoteImageIn) -> Response:
+    """이미지 주소에서 사진을 받아 그대로 돌려준다. 서버에는 저장하지 않는다(저장은 프로젝트를 저장할 때)."""
+    try:
+        content, media_type = remote_image.fetch_image(body.url, remote_image.default_client)
+    except remote_image.RemoteImageError as error:
+        raise HTTPException(error.status_code, error.message) from error
+    return Response(content=content, media_type=media_type)
 
 
 @app.get("/api/images/{name}")

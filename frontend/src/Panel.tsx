@@ -9,6 +9,7 @@ import { Projects } from './Projects'
 import { Section } from './Section'
 import { ZOOM_MAX, ZOOM_MIN } from './stage'
 import { Templates } from './Templates'
+import { UrlImport } from './UrlImport'
 import { CANVAS_WIDTH, RATIOS, coverScale, useEditor } from './store'
 import type { RatioKey, TitleAlign } from './store'
 
@@ -43,6 +44,7 @@ export function Panel() {
   return (
     <aside className="panel">
       <Section title="사진" defaultOpen>
+        <UrlImport />
         {error && <p className="error">{error}</p>}
         <Slider
           label="확대"
