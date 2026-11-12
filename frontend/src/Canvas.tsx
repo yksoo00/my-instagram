@@ -10,6 +10,7 @@ import {
   useEditor,
 } from './store'
 
+import { useCustomFonts } from './fontStore'
 import { OpenImage } from './Fields'
 import { Icon } from './Icon'
 import { ZOOM_MAX, ZOOM_MIN, stageRef } from './stage'
@@ -124,6 +125,8 @@ function Title({ displayScale }: { displayScale: number }) {
   const title = useEditor((state) => state.title)
   const setTitle = useEditor((state) => state.setTitle)
   const [loadedFonts, setLoadedFonts] = useState(0)
+  // 내 글꼴이 등록되면(check 는 모르는 글꼴에 true 를 주므로 위 효과가 못 잡는다) 다시 그린다.
+  const customFontsVersion = useCustomFonts((state) => state.version)
 
   const fontStyle = title.bold ? 'bold' : 'normal'
   const font = `${fontStyle} ${title.fontSize}px "${title.fontFamily}"`
@@ -152,7 +155,7 @@ function Title({ displayScale }: { displayScale: number }) {
   return (
     <Group
       // 글꼴이 도착하면 Konva 가 기억해 둔 글자 폭도 버려야 해서 통째로 다시 만든다.
-      key={loadedFonts}
+      key={`${loadedFonts}-${customFontsVersion}`}
       x={TITLE_PADDING}
       y={title.y}
       draggable

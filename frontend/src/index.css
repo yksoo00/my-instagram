@@ -632,6 +632,55 @@ input[type='color']::-webkit-color-swatch {
   text-align: left;
 }
 
+.reference-result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-input);
+  border: 1px solid #444;
+  border-radius: var(--radius);
+}
+
+.reference-result img {
+  align-self: center;
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.reference-result ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  vertical-align: -1px;
+  border: 1px solid #777;
+  border-radius: 2px;
+}
+
+.font-item {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 15px;
+  color: var(--text-strong);
+  background: var(--bg-input);
+  border: 1px solid #444;
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hint {
   margin: 0;
   font-size: 11px;

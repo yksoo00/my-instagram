@@ -33,6 +33,12 @@ export interface ProjectSummary {
   updated_at: string
 }
 
+export interface CustomFont {
+  id: number
+  name: string
+  file: string
+}
+
 export interface SavedPhrase {
   id: number
   text: string
@@ -54,6 +60,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // 백엔드가 꺼져 있으면 Vite 프록시가 5xx 를 돌려준다.
   if (response.status >= 500) throw new Error(OFFLINE_MESSAGE)
   if (response.status === 422) throw new Error('입력 값이 올바르지 않습니다.')
+  if (response.status === 409) throw new Error('이미 같은 이름이 있습니다.')
   if (response.status === 413) throw new Error('파일이 너무 큽니다. 20MB 이하만 저장할 수 있습니다.')
   if (!response.ok) throw new Error(`요청이 실패했습니다 (${response.status}).`)
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T)
@@ -89,6 +96,15 @@ export const api = {
   saveProject: (name: string, data: ProjectData) =>
     request<ProjectSummary>('/projects', { method: 'POST', body: JSON.stringify({ name, data }) }),
   deleteProject: (id: number) => request<void>(`/projects/${id}`, { method: 'DELETE' }),
+
+  listFonts: () => request<CustomFont[]>('/fonts'),
+  uploadFont: (file: File, name: string) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('name', name)
+    return request<CustomFont>('/fonts', { method: 'POST', body: form })
+  },
+  deleteFont: (id: number) => request<void>(`/fonts/${id}`, { method: 'DELETE' }),
 
   listPhrases: () => request<SavedPhrase[]>('/phrases'),
   savePhrase: (text: string) =>

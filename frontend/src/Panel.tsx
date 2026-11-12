@@ -1,4 +1,7 @@
+import { CustomFonts } from './CustomFonts'
+import { useCustomFonts } from './fontStore'
 import { ColorField, Field, Slider, Toggle } from './Fields'
+import { ReferenceImport } from './ReferenceImport'
 import { Phrases } from './Phrases'
 import { Projects } from './Projects'
 import { Section } from './Section'
@@ -30,6 +33,11 @@ export function Panel() {
     setAdjust,
     setFooter,
   } = useEditor()
+
+  const customFonts = useCustomFonts((state) => state.items)
+  const isKnownFont =
+    FONTS.some((font) => font.value === title.fontFamily) ||
+    customFonts.some((font) => font.name === title.fontFamily)
 
   const cover = image ? coverScale(image.element, ratio) : 1
   const zoom = image ? image.scale / cover : 1
@@ -106,6 +114,17 @@ export function Panel() {
                 {font.label}
               </option>
             ))}
+            {customFonts.length > 0 && (
+              <optgroup label="내 글꼴">
+                {customFonts.map((font) => (
+                  <option key={font.id} value={font.name}>
+                    {font.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {/* 템플릿·프로젝트가 지운 글꼴을 가리키면 select 가 빈 칸이 되지 않게 이름을 그대로 보여 준다. */}
+            {!isKnownFont && <option value={title.fontFamily}>{title.fontFamily} (없음)</option>}
           </select>
         </Field>
         <div className="segmented">
@@ -177,6 +196,10 @@ export function Panel() {
         </Toggle>
         <p className="hint">제목을 위아래로 끌어 위치를 정합니다.</p>
       </Section>
+
+      <CustomFonts />
+
+      <ReferenceImport />
 
       <Section title="하단 그라데이션">
         <Slider

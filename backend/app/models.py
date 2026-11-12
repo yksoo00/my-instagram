@@ -25,6 +25,16 @@ class Project(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
 
+class Font(Base):
+    __tablename__ = "fonts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # 이름이 곧 CSS 글꼴 이름(font-family)이다. 템플릿·프로젝트는 이 이름으로 글꼴을 가리킨다.
+    name: Mapped[str] = mapped_column(String(50), unique=True)
+    file: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
 class Phrase(Base):
     __tablename__ = "phrases"
 

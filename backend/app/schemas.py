@@ -116,6 +116,14 @@ class ImageOut(BaseModel):
     file: str
 
 
+class FontOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    file: str
+
+
 class PhraseIn(Strict):
     text: PhraseText
 

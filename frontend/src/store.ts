@@ -79,6 +79,21 @@ export function gridInset(ratio: RatioKey): { x: number; y: number } {
   return { x: (CANVAS_WIDTH - visibleWidth) / 2, y: (height - visibleHeight) / 2 }
 }
 
+/** 참고 이미지에서 읽어 낸 구조. 글자 덩어리를 못 찾으면 title 이 null. */
+export interface ReferenceStyle {
+  ratio: RatioKey
+  gradient: GradientState
+  title: {
+    y: number
+    fontSize: number
+    align: TitleAlign
+    color: string
+    /** 본문 색과 뚜렷이 다른 채도 높은 색이 있을 때만 */
+    accentColor: string | null
+    lineCount: number
+  } | null
+}
+
 /** 되돌리기 대상. 오류 문구 같은 화면 상태는 넣지 않는다. */
 interface Snapshot {
   ratio: RatioKey
@@ -128,6 +143,7 @@ interface EditorState extends Snapshot {
   setAdjust: (patch: Partial<AdjustState>) => void
   setFooter: (patch: Partial<FooterState>) => void
   applyTemplate: (settings: TemplateSettings) => void
+  applyReference: (style: ReferenceStyle) => void
   undo: () => void
   redo: () => void
   setRatio: (ratio: RatioKey) => void
@@ -405,6 +421,29 @@ export const useEditor = create<EditorState>((set) => ({
       ...record(state, `footer:${Object.keys(patch).join()}`),
       footer: { ...state.footer, ...patch },
     })),
+
+  // 글꼴 종류·외곽선·그림자·줄 간격은 이미지에서 알 수 없으니 지금 값을 그대로 둔다.
+  applyReference: (style) =>
+    set((state) => {
+      const { accentColor, y, fontSize, align, color } = style.title ?? {}
+      return {
+        ...record(state, null),
+        ratio: style.ratio,
+        slides: refitSlides(state.slides, style.ratio),
+        image: state.image ? fit(state.image, style.ratio) : null,
+        gradient: style.gradient,
+        title: style.title
+          ? {
+              ...state.title,
+              y: y!,
+              fontSize: fontSize!,
+              align: align!,
+              color: color!,
+              accentColor: accentColor ?? state.title.accentColor,
+            }
+          : state.title,
+      }
+    }),
 
   applyTemplate: (settings) =>
     set((state) => ({

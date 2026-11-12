@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Canvas } from './Canvas'
+import { useCustomFonts } from './fontStore'
 import { Filmstrip } from './Filmstrip'
 import { Panel } from './Panel'
 import { TopBar } from './TopBar'
@@ -9,6 +10,11 @@ function App() {
   const [dragging, setDragging] = useState(false)
   // 자식 요소를 지날 때마다 enter/leave 가 번갈아 와서 깜빡이므로 횟수로 센다.
   const dragDepth = useRef(0)
+
+  // 내 글꼴을 브라우저에 등록한다. 프로젝트·템플릿이 쓰는 글꼴이 처음부터 보이도록 앱을 열 때 한 번.
+  useEffect(() => {
+    void useCustomFonts.getState().load()
+  }, [])
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {

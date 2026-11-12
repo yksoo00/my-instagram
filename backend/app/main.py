@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Response, UploadFile, status
+from fastapi import Depends, FastAPI, Form, HTTPException, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,8 +14,9 @@ from sqlalchemy.orm import Session
 
 from app import db
 from app.db import DATA_DIR, Base, engine, get_session
-from app.models import Phrase, Project, Template
+from app.models import Font, Phrase, Project, Template
 from app.schemas import (
+    FontOut,
     ImageOut,
     PhraseIn,
     PhraseOut,
@@ -161,6 +162,79 @@ def delete_project(project_id: int, session: SessionDep) -> Response:
     project = session.get(Project, project_id)
     if project is not None:
         session.delete(project)
+        session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+MAX_FONT_BYTES = 15 * 1024 * 1024
+FONT_FILE = re.compile(r"^[0-9a-f]{32}\.(ttf|otf|woff|woff2)$")
+FONT_MEDIA = {"ttf": "font/ttf", "otf": "font/otf", "woff": "font/woff", "woff2": "font/woff2"}
+FontName = Annotated[str, Form(min_length=1, max_length=50)]
+
+
+def detect_font_extension(head: bytes) -> str | None:
+    """글꼴도 확장자가 아니라 파일 앞머리(매직 넘버)로 판별한다."""
+    if head[:4] in (b"\x00\x01\x00\x00", b"true"):
+        return "ttf"
+    if head[:4] == b"OTTO":
+        return "otf"
+    if head[:4] == b"wOFF":
+        return "woff"
+    if head[:4] == b"wOF2":
+        return "woff2"
+    return None
+
+
+@app.get("/api/fonts", response_model=list[FontOut])
+def list_fonts(session: SessionDep) -> list[Font]:
+    return list(session.scalars(select(Font).order_by(Font.name)))
+
+
+@app.post("/api/fonts", response_model=FontOut)
+async def upload_font(file: UploadFile, name: FontName, session: SessionDep) -> Font:
+    name = name.strip()
+    if not name:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "글꼴 이름을 입력하세요.")
+    content = await file.read(MAX_FONT_BYTES + 1)
+    if len(content) > MAX_FONT_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "15MB 이하만 올릴 수 있습니다.")
+    extension = detect_font_extension(content[:4])
+    if extension is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "TTF·OTF·WOFF·WOFF2 글꼴만 올릴 수 있습니다."
+        )
+    if session.scalar(select(Font).where(Font.name == name)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "이미 같은 이름의 글꼴이 있습니다.")
+
+    file_name = f"{uuid.uuid4().hex}.{extension}"
+    db.FONT_DIR.mkdir(parents=True, exist_ok=True)
+    path = db.FONT_DIR / file_name
+    path.write_bytes(content)
+    font = Font(name=name, file=file_name)
+    session.add(font)
+    try:
+        session.commit()
+    except Exception:
+        # 같은 이름이 동시에 들어온 경우 등. 행이 없으면 파일만 남지 않게 지운다.
+        path.unlink(missing_ok=True)
+        raise
+    return font
+
+
+@app.get("/api/fonts/files/{file_name}")
+def get_font_file(file_name: str) -> FileResponse:
+    path = db.FONT_DIR / file_name
+    if not FONT_FILE.fullmatch(file_name) or not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return FileResponse(path, media_type=FONT_MEDIA[file_name.rsplit(".", 1)[1]])
+
+
+@app.delete("/api/fonts/{font_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_font(font_id: int, session: SessionDep) -> Response:
+    font = session.get(Font, font_id)
+    if font is not None:
+        (db.FONT_DIR / font.file).unlink(missing_ok=True)
+        session.delete(font)
         session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
