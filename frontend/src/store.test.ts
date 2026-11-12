@@ -22,13 +22,13 @@ beforeEach(() => {
 
 describe('사진 맞춤', () => {
   it('캔버스를 빈틈 없이 덮는 배율로 가운데에 놓는다', () => {
-    useEditor.getState().setImage(fakeImage(2160, 1350))
+    useEditor.getState().setImage(fakeImage(2160, 1350), new Blob())
     // 4:5(1080x1350). 세로를 맞추면 가로가 넘친다.
     expect(useEditor.getState().image).toMatchObject({ scale: 1, x: -540, y: 0 })
   })
 
   it('비율을 바꾸면 다시 맞추고 제목은 바닥과의 거리를 유지한다', () => {
-    useEditor.getState().setImage(fakeImage(1080, 1080))
+    useEditor.getState().setImage(fakeImage(1080, 1080), new Blob())
     const before = useEditor.getState().title.y
     useEditor.getState().setRatio('1:1')
     expect(useEditor.getState().image).toMatchObject({ scale: 1, x: 0, y: 0 })
@@ -42,7 +42,7 @@ describe('사진 맞춤', () => {
 
 describe('확대', () => {
   it('기준점이 화면에서 제자리에 머문다', () => {
-    useEditor.getState().setImage(fakeImage(1080, 1350))
+    useEditor.getState().setImage(fakeImage(1080, 1350), new Blob())
     useEditor.getState().zoomImage(2, 540, 675)
     expect(useEditor.getState().image).toMatchObject({ scale: 2, x: -540, y: -675 })
   })
@@ -87,7 +87,7 @@ describe('되돌리기', () => {
 describe('슬라이드', () => {
   it('장마다 사진·글은 따로, 제목 모양은 같이 쓴다', () => {
     const state = useEditor.getState
-    state().setImage(fakeImage(1080, 1350))
+    state().setImage(fakeImage(1080, 1350), new Blob())
     state().setTitle({ text: '첫 장', fontSize: 100 })
     state().addSlide()
     expect(state()).toMatchObject({ activeSlide: 1, image: null })
@@ -150,7 +150,7 @@ describe('슬라이드', () => {
 
   it('비율을 바꾸면 다른 장의 사진도 다시 맞춘다', () => {
     const state = useEditor.getState
-    state().setImage(fakeImage(1080, 1080))
+    state().setImage(fakeImage(1080, 1080), new Blob())
     state().addSlide()
     state().setRatio('1:1')
     state().selectSlide(0)

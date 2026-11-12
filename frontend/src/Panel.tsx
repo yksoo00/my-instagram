@@ -1,4 +1,5 @@
 import { Phrases } from './Phrases'
+import { Projects } from './Projects'
 import { Section } from './Section'
 import { ZOOM_MAX, ZOOM_MIN, exportAll, exportImage } from './stage'
 import { Templates } from './Templates'
@@ -333,6 +334,8 @@ export function Panel() {
       <Phrases />
 
       <Templates />
+
+      <Projects />
 
       <Section title="계정명·출처">
         <input

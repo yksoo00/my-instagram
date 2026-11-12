@@ -21,6 +21,8 @@ export const FONTS = [
 
 export interface ImageState {
   element: HTMLImageElement
+  /** 올린 원본 파일. 프로젝트로 저장할 때 서버에 올린다. */
+  blob: Blob
   x: number
   y: number
   scale: number
@@ -129,7 +131,7 @@ interface EditorState extends Snapshot {
   undo: () => void
   redo: () => void
   setRatio: (ratio: RatioKey) => void
-  setImage: (element: HTMLImageElement) => void
+  setImage: (element: HTMLImageElement, blob: Blob) => void
   moveImage: (x: number, y: number) => void
   zoomImage: (scale: number, originX: number, originY: number) => void
   fitImage: () => void
@@ -146,10 +148,12 @@ export function coverScale(element: HTMLImageElement, ratio: RatioKey): number {
   )
 }
 
-function fit(element: HTMLImageElement, ratio: RatioKey): ImageState {
+function fit(source: Pick<ImageState, 'element' | 'blob'>, ratio: RatioKey): ImageState {
+  const { element, blob } = source
   const scale = coverScale(element, ratio)
   return {
     element,
+    blob,
     scale,
     x: (CANVAS_WIDTH - element.naturalWidth * scale) / 2,
     y: (RATIOS[ratio] - element.naturalHeight * scale) / 2,
@@ -163,7 +167,7 @@ const DEFAULT_ADJUST: AdjustState = { brightness: 0, contrast: 0 }
 /** 비율이 바뀌면 지금 장이 아닌 장의 사진도 새 비율에 다시 맞춘다. */
 function refitSlides(slides: SlideData[], ratio: RatioKey): SlideData[] {
   return slides.map((slide) =>
-    slide.image ? { ...slide, image: fit(slide.image.element, ratio) } : slide,
+    slide.image ? { ...slide, image: fit(slide.image, ratio) } : slide,
   )
 }
 
@@ -275,7 +279,7 @@ export const useEditor = create<EditorState>((set) => ({
       ...record(state, null),
       ratio,
       slides: refitSlides(state.slides, ratio),
-      image: state.image ? fit(state.image.element, ratio) : null,
+      image: state.image ? fit(state.image, ratio) : null,
       // 제목은 아래쪽 기준으로 놓는 요소라서 바닥과의 거리를 유지한다.
       title: {
         ...state.title,
@@ -283,10 +287,10 @@ export const useEditor = create<EditorState>((set) => ({
       },
     })),
 
-  setImage: (element) =>
+  setImage: (element, blob) =>
     set((state) => ({
       ...record(state, null),
-      image: fit(element, state.ratio),
+      image: fit({ element, blob }, state.ratio),
       error: null,
     })),
 
@@ -317,7 +321,7 @@ export const useEditor = create<EditorState>((set) => ({
   fitImage: () =>
     set((state) =>
       state.image
-        ? { ...record(state, null), image: fit(state.image.element, state.ratio) }
+        ? { ...record(state, null), image: fit(state.image, state.ratio) }
         : {},
     ),
 
@@ -407,12 +411,55 @@ export const useEditor = create<EditorState>((set) => ({
       ...record(state, null),
       ratio: settings.ratio,
       slides: refitSlides(state.slides, settings.ratio),
-      image: state.image ? fit(state.image.element, settings.ratio) : null,
+      image: state.image ? fit(state.image, settings.ratio) : null,
       gradient: settings.gradient,
       title: { ...settings.title, text: state.title.text },
       footer: settings.footer ?? state.footer,
     })),
 }))
+
+/** 프로젝트 하나를 이루는 모든 값. 서버에 저장·불러오기 하는 단위. */
+export interface ProjectState {
+  ratio: RatioKey
+  gradient: GradientState
+  title: Omit<TitleState, 'text'>
+  footer: FooterState
+  numbering: boolean
+  slides: SlideData[]
+}
+
+export function currentProject(): ProjectState {
+  const state = useEditor.getState()
+  const { text: _text, ...style } = state.title
+  return {
+    ratio: state.ratio,
+    gradient: state.gradient,
+    title: style,
+    footer: state.footer,
+    numbering: state.numbering,
+    slides: allSlides(),
+  }
+}
+
+/** 작업 전체를 갈아끼운다. 되돌리기 기록은 새 프로젝트와 무관하므로 비운다. */
+export function replaceProject(project: ProjectState): void {
+  const first = project.slides[0]
+  lastKey = null
+  useEditor.setState({
+    ratio: project.ratio,
+    gradient: project.gradient,
+    title: { ...project.title, text: first.text },
+    footer: project.footer,
+    numbering: project.numbering,
+    slides: project.slides,
+    activeSlide: 0,
+    image: first.image,
+    adjust: first.adjust,
+    past: [],
+    future: [],
+    error: null,
+  })
+}
 
 export function currentTemplateSettings(): TemplateSettings {
   const { ratio, gradient, title, footer } = useEditor.getState()
@@ -433,7 +480,7 @@ export function loadImageFile(file: File): void {
   element.onload = () => {
     // 이미 읽어 들인 사진은 주소를 해제해도 계속 그릴 수 있어서, 되돌리기에 남은 이전 사진도 문제없다.
     URL.revokeObjectURL(url)
-    setImage(element)
+    setImage(element, file)
   }
   element.onerror = () => {
     URL.revokeObjectURL(url)
