@@ -95,7 +95,19 @@ export function Canvas() {
                 fontStyle={title.bold ? 'bold' : 'normal'}
                 fill={title.color}
                 align={title.align}
-                lineHeight={1.25}
+                lineHeight={title.lineHeight}
+                letterSpacing={title.letterSpacing}
+                stroke={title.strokeColor}
+                strokeWidth={title.strokeWidth}
+                strokeEnabled={title.strokeWidth > 0}
+                // 외곽선을 먼저 그리고 글자를 덮어야 획이 글자를 파먹지 않는다.
+                fillAfterStrokeEnabled
+                lineJoin="round"
+                shadowEnabled={title.shadow}
+                shadowColor="#000000"
+                shadowBlur={16}
+                shadowOffsetY={4}
+                shadowOpacity={0.6}
                 draggable
                 // 제목은 위아래로만 옮긴다. dragBoundFunc 는 화면 좌표라서 배율을 곱한다.
                 dragBoundFunc={(position) => ({

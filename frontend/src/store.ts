@@ -38,14 +38,28 @@ export interface TitleState {
   color: string
   align: TitleAlign
   y: number
+  lineHeight: number
+  letterSpacing: number
+  /** 0 이면 외곽선 없음 */
+  strokeWidth: number
+  strokeColor: string
+  shadow: boolean
 }
 
-interface EditorState {
+/** 되돌리기 대상. 오류 문구 같은 화면 상태는 넣지 않는다. */
+interface Snapshot {
   ratio: RatioKey
   image: ImageState | null
   gradient: GradientState
   title: TitleState
+}
+
+interface EditorState extends Snapshot {
+  past: Snapshot[]
+  future: Snapshot[]
   error: string | null
+  undo: () => void
+  redo: () => void
   setRatio: (ratio: RatioKey) => void
   setImage: (element: HTMLImageElement) => void
   moveImage: (x: number, y: number) => void
@@ -76,7 +90,65 @@ function fit(element: HTMLImageElement, ratio: RatioKey): ImageState {
 
 const DEFAULT_RATIO: RatioKey = '4:5'
 
+const HISTORY_LIMIT = 100
+const MERGE_WINDOW_MS = 600
+let lastKey: string | null = null
+let lastTime = 0
+
+function snapshot(state: Snapshot): Snapshot {
+  return {
+    ratio: state.ratio,
+    image: state.image,
+    gradient: state.gradient,
+    title: state.title,
+  }
+}
+
+/**
+ * 바꾸기 직전 상태를 되돌리기 목록에 쌓는다.
+ * 슬라이더·타이핑은 값이 연달아 바뀌므로, 같은 key 가 짧은 간격으로 이어지면 한 단계로 합친다.
+ */
+function record(state: EditorState, key: string | null) {
+  const now = Date.now()
+  const merge = key !== null && key === lastKey && now - lastTime < MERGE_WINDOW_MS
+  lastKey = key
+  lastTime = now
+  return {
+    past: merge
+      ? state.past
+      : [...state.past.slice(-(HISTORY_LIMIT - 1)), snapshot(state)],
+    future: [],
+  }
+}
+
 export const useEditor = create<EditorState>((set) => ({
+  past: [],
+  future: [],
+
+  undo: () =>
+    set((state) => {
+      const previous = state.past.at(-1)
+      if (!previous) return {}
+      lastKey = null
+      return {
+        ...previous,
+        past: state.past.slice(0, -1),
+        future: [snapshot(state), ...state.future],
+      }
+    }),
+
+  redo: () =>
+    set((state) => {
+      const next = state.future[0]
+      if (!next) return {}
+      lastKey = null
+      return {
+        ...next,
+        past: [...state.past, snapshot(state)],
+        future: state.future.slice(1),
+      }
+    }),
+
   ratio: DEFAULT_RATIO,
   image: null,
   gradient: { height: 0.5, opacity: 0.9 },
@@ -88,11 +160,17 @@ export const useEditor = create<EditorState>((set) => ({
     color: '#ffffff',
     align: 'center',
     y: RATIOS[DEFAULT_RATIO] - 320,
+    lineHeight: 1.25,
+    letterSpacing: 0,
+    strokeWidth: 0,
+    strokeColor: '#000000',
+    shadow: true,
   },
   error: null,
 
   setRatio: (ratio) =>
     set((state) => ({
+      ...record(state, null),
       ratio,
       image: state.image ? fit(state.image.element, ratio) : null,
       // 제목은 아래쪽 기준으로 놓는 요소라서 바닥과의 거리를 유지한다.
@@ -103,10 +181,18 @@ export const useEditor = create<EditorState>((set) => ({
     })),
 
   setImage: (element) =>
-    set((state) => ({ image: fit(element, state.ratio), error: null })),
+    set((state) => ({
+      ...record(state, null),
+      image: fit(element, state.ratio),
+      error: null,
+    })),
 
   moveImage: (x, y) =>
-    set((state) => (state.image ? { image: { ...state.image, x, y } } : {})),
+    set((state) =>
+      state.image
+        ? { ...record(state, null), image: { ...state.image, x, y } }
+        : {},
+    ),
 
   // origin(캔버스 좌표)이 화면에서 제자리에 머물도록 위치를 같이 옮긴다.
   zoomImage: (scale, originX, originY) =>
@@ -115,6 +201,7 @@ export const useEditor = create<EditorState>((set) => ({
       if (!image) return {}
       const factor = scale / image.scale
       return {
+        ...record(state, 'zoom'),
         image: {
           ...image,
           scale,
@@ -126,13 +213,22 @@ export const useEditor = create<EditorState>((set) => ({
 
   fitImage: () =>
     set((state) =>
-      state.image ? { image: fit(state.image.element, state.ratio) } : {},
+      state.image
+        ? { ...record(state, null), image: fit(state.image.element, state.ratio) }
+        : {},
     ),
 
   setGradient: (patch) =>
-    set((state) => ({ gradient: { ...state.gradient, ...patch } })),
+    set((state) => ({
+      ...record(state, `gradient:${Object.keys(patch).join()}`),
+      gradient: { ...state.gradient, ...patch },
+    })),
 
-  setTitle: (patch) => set((state) => ({ title: { ...state.title, ...patch } })),
+  setTitle: (patch) =>
+    set((state) => ({
+      ...record(state, `title:${Object.keys(patch).join()}`),
+      title: { ...state.title, ...patch },
+    })),
 
   setError: (error) => set({ error }),
 }))
@@ -148,8 +244,8 @@ export function loadImageFile(file: File): void {
   const url = URL.createObjectURL(file)
   const element = new Image()
   element.onload = () => {
-    const previous = useEditor.getState().image
-    if (previous) URL.revokeObjectURL(previous.element.src)
+    // 이미 읽어 들인 사진은 주소를 해제해도 계속 그릴 수 있어서, 되돌리기에 남은 이전 사진도 문제없다.
+    URL.revokeObjectURL(url)
     setImage(element)
   }
   element.onerror = () => {

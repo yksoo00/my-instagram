@@ -1,3 +1,4 @@
+import { Phrases } from './Phrases'
 import { ZOOM_MAX, ZOOM_MIN, exportPng } from './stage'
 import {
   CANVAS_WIDTH,
@@ -27,7 +28,11 @@ export function Panel() {
     fitImage,
     setGradient,
     setTitle,
+    undo,
+    redo,
   } = useEditor()
+  const canUndo = useEditor((state) => state.past.length > 0)
+  const canRedo = useEditor((state) => state.future.length > 0)
 
   const cover = image ? coverScale(image.element, ratio) : 1
   const zoom = image ? image.scale / cover : 1
@@ -35,6 +40,15 @@ export function Panel() {
   return (
     <aside className="panel">
       <h1>MY INSTAGRAM STUDIO</h1>
+
+      <div className="segmented">
+        <button type="button" disabled={!canUndo} onClick={undo}>
+          되돌리기
+        </button>
+        <button type="button" disabled={!canRedo} onClick={redo}>
+          다시 실행
+        </button>
+      </div>
 
       <section>
         <h2>사진</h2>
@@ -145,6 +159,57 @@ export function Panel() {
             onChange={(event) => setTitle({ fontSize: Number(event.target.value) })}
           />
         </label>
+        <label>
+          줄 간격 {title.lineHeight.toFixed(2)}
+          <input
+            type="range"
+            min={0.8}
+            max={2}
+            step={0.05}
+            value={title.lineHeight}
+            onChange={(event) => setTitle({ lineHeight: Number(event.target.value) })}
+          />
+        </label>
+        <label>
+          자간 {title.letterSpacing}px
+          <input
+            type="range"
+            min={-10}
+            max={30}
+            step={1}
+            value={title.letterSpacing}
+            onChange={(event) => setTitle({ letterSpacing: Number(event.target.value) })}
+          />
+        </label>
+        <label>
+          외곽선 {title.strokeWidth}px
+          <input
+            type="range"
+            min={0}
+            max={24}
+            step={1}
+            value={title.strokeWidth}
+            onChange={(event) => setTitle({ strokeWidth: Number(event.target.value) })}
+          />
+        </label>
+        <div className="row">
+          <label className="inline">
+            외곽선 색
+            <input
+              type="color"
+              value={title.strokeColor}
+              onChange={(event) => setTitle({ strokeColor: event.target.value })}
+            />
+          </label>
+          <label className="inline">
+            <input
+              type="checkbox"
+              checked={title.shadow}
+              onChange={(event) => setTitle({ shadow: event.target.checked })}
+            />
+            그림자
+          </label>
+        </div>
         <div className="row">
           <label className="inline">
             색상
@@ -177,6 +242,8 @@ export function Panel() {
         </div>
         <p className="hint">제목을 위아래로 끌어 위치를 정합니다.</p>
       </section>
+
+      <Phrases />
 
       <button type="button" className="primary" disabled={!image} onClick={exportPng}>
         PNG 저장
