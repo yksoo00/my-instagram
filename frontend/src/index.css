@@ -87,7 +87,7 @@ body {
   background: var(--bg-panel);
   border-left: 1px solid var(--line);
   scrollbar-width: thin;
-  scrollbar-color: var(--scroll) transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 /* ---------- 위 막대 ---------- */
@@ -610,13 +610,9 @@ input[type='color']::-webkit-color-swatch {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 200px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scroll) transparent;
 }
 
 .phrases li {
@@ -677,10 +673,6 @@ input[type='color']::-webkit-color-swatch {
   font-size: 11px;
   font-weight: 700;
   color: var(--dim);
-}
-
-.font-list {
-  max-height: 160px;
 }
 
 /* 자르기 창 */
