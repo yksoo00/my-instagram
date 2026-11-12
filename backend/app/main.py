@@ -1,15 +1,28 @@
-﻿from collections.abc import AsyncIterator
+﻿import re
+import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import db
 from app.db import DATA_DIR, Base, engine, get_session
-from app.models import Phrase, Template
-from app.schemas import PhraseIn, PhraseOut, TemplateIn, TemplateOut
+from app.models import Phrase, Project, Template
+from app.schemas import (
+    ImageOut,
+    PhraseIn,
+    PhraseOut,
+    ProjectIn,
+    ProjectOut,
+    ProjectSummary,
+    TemplateIn,
+    TemplateOut,
+)
 
 
 @asynccontextmanager
@@ -62,6 +75,80 @@ def delete_template(template_id: int, session: SessionDep) -> Response:
     template = session.get(Template, template_id)
     if template is not None:
         session.delete(template)
+        session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+IMAGE_NAME = re.compile(r"^[0-9a-f]{32}\.(png|jpg)$")
+
+
+def detect_extension(head: bytes) -> str | None:
+    """확장자·Content-Type 은 믿지 않고 파일 앞머리로 판별한다."""
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if head.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    return None
+
+
+@app.post("/api/images", response_model=ImageOut)
+async def upload_image(file: UploadFile) -> ImageOut:
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "20MB 이하만 올릴 수 있습니다.")
+    extension = detect_extension(content[:8])
+    if extension is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "JPG 또는 PNG 만 올릴 수 있습니다.")
+    name = f"{uuid.uuid4().hex}.{extension}"
+    upload_dir = db.UPLOAD_DIR
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    (upload_dir / name).write_bytes(content)
+    return ImageOut(file=name)
+
+
+@app.get("/api/images/{name}")
+def get_image(name: str) -> FileResponse:
+    # 이름 모양을 먼저 검사해서 경로 조작(../)이 파일 시스템에 닿지 않게 한다.
+    path = db.UPLOAD_DIR / name
+    if not IMAGE_NAME.fullmatch(name) or not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return FileResponse(path, media_type="image/png" if name.endswith(".png") else "image/jpeg")
+
+
+@app.get("/api/projects", response_model=list[ProjectSummary])
+def list_projects(session: SessionDep) -> list[Project]:
+    return list(session.scalars(select(Project).order_by(Project.updated_at.desc())))
+
+
+@app.get("/api/projects/{project_id}", response_model=ProjectOut)
+def get_project(project_id: int, session: SessionDep) -> Project:
+    project = session.get(Project, project_id)
+    if project is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return project
+
+
+@app.post("/api/projects", response_model=ProjectSummary)
+def save_project(body: ProjectIn, session: SessionDep) -> Project:
+    # 템플릿과 같이 이름이 기준이라 같은 이름으로 저장하면 덮어쓴다.
+    project = session.scalar(select(Project).where(Project.name == body.name))
+    data = body.data.model_dump()
+    if project is None:
+        project = Project(name=body.name, data=data)
+        session.add(project)
+    else:
+        project.data = data
+    session.commit()
+    session.refresh(project)
+    return project
+
+
+@app.delete("/api/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(project_id: int, session: SessionDep) -> Response:
+    project = session.get(Project, project_id)
+    if project is not None:
+        session.delete(project)
         session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

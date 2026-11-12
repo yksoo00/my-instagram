@@ -1,5 +1,6 @@
 """요청·응답 모양. 수치 범위는 프론트 패널의 슬라이더 범위와 같게 둔다."""
 
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
@@ -48,6 +49,56 @@ class TemplateSettings(Strict):
     footer: Footer = Footer(text="", fontSize=32)
 
 
+class SlideImage(Strict):
+    # 업로드 API 가 만든 이름만 받는다. 이 모양이라 경로 조작 문자가 들어올 수 없다.
+    file: str = Field(pattern=r"^[0-9a-f]{32}\.(png|jpg)$")
+    x: float = Field(ge=-100000, le=100000)
+    y: float = Field(ge=-100000, le=100000)
+    scale: float = Field(gt=0, le=100)
+
+
+class Adjust(Strict):
+    brightness: float = Field(ge=-1, le=1)
+    contrast: float = Field(ge=-100, le=100)
+
+
+class Slide(Strict):
+    image: SlideImage | None
+    adjust: Adjust
+    text: str = Field(max_length=500)
+
+
+MAX_SLIDES = 30
+
+
+class ProjectData(Strict):
+    ratio: Literal["4:5", "1:1", "9:16"]
+    gradient: Gradient
+    title: TitleStyle
+    footer: Footer
+    numbering: bool
+    slides: list[Slide] = Field(min_length=1, max_length=MAX_SLIDES)
+
+
+class ProjectIn(Strict):
+    name: Name
+    data: ProjectData
+
+
+class ProjectOut(ProjectIn):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+
+
+class ProjectSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    updated_at: datetime
+
+
 class TemplateIn(Strict):
     name: Name
     settings: TemplateSettings
@@ -59,6 +110,10 @@ class TemplateOut(BaseModel):
     id: int
     name: str
     settings: TemplateSettings
+
+
+class ImageOut(BaseModel):
+    file: str
 
 
 class PhraseIn(Strict):

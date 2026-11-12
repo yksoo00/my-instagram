@@ -5,13 +5,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from app import db
 from app.db import Base, get_session
 from app.main import app
 
 
 @pytest.fixture
-def client(tmp_path) -> Iterator[TestClient]:
-    """테스트마다 빈 SQLite 파일을 쓴다. 실제 data/studio.db 는 건드리지 않는다."""
+def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
+    """테스트마다 빈 SQLite 파일과 빈 업로드 폴더를 쓴다. 실제 data/ 는 건드리지 않는다."""
+    monkeypatch.setattr(db, "UPLOAD_DIR", tmp_path / "uploads")
     engine = create_engine(
         f"sqlite:///{tmp_path / 'test.db'}", connect_args={"check_same_thread": False}
     )
