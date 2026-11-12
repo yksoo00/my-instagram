@@ -1,0 +1,9 @@
+# 배치 파일은 줄 끝이 CRLF 여야 cmd 가 라벨(goto)을 제대로 읽는다.
+# install.bat 은 GitHub 에서 "Download raw file" 로 한 파일만 받아 쓰기도 하므로,
+# 저장소에 들어가는 내용부터 CRLF 그대로여야 한다. 그래서 줄바꿈 변환을 끈다(-text).
+# 또 한글 메시지는 CP949(한국어 Windows 기본)로 저장한다. UTF-8 이면 cmd 가 한글 줄을 잘못 읽어
+# 엉뚱한 명령 오류가 난다. 고칠 때는 CP949 + CRLF 로 저장할 것.
+*.bat -text
+*.cmd -text
+# PowerShell 5.1 은 BOM 없는 UTF-8 한글을 깨뜨리므로 BOM 이 있는 채로 둔다.
+*.ps1 -text

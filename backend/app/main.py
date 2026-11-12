@@ -2,11 +2,13 @@
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -44,6 +46,16 @@ app.add_middleware(
 )
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+
+def mount_frontend(target: FastAPI, dist: Path) -> None:
+    """빌드된 화면이 있으면 같은 서버(8000)에서 내준다. 형이 쓸 때 프로세스를 하나로 줄이려고."""
+    if dist.is_dir():
+        # 맨 마지막에 붙여야 /api 경로가 먼저 잡힌다.
+        target.mount("/", StaticFiles(directory=dist, html=True), name="frontend")
 
 
 @app.get("/api/health")
@@ -175,3 +187,7 @@ def delete_phrase(phrase_id: int, session: SessionDep) -> Response:
         session.delete(phrase)
         session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# 모든 API 경로 등록이 끝난 뒤에 붙인다.
+mount_frontend(app, FRONTEND_DIST)
