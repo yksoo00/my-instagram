@@ -75,18 +75,47 @@ body {
   letter-spacing: 0.5px;
 }
 
-.panel h2 {
-  margin: 0;
-  font-size: 13px;
-  color: var(--text-dim);
+.section {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
 }
 
-.panel section {
+.section > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.section > summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 1em;
+  transition: transform 0.15s;
+}
+
+.section[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.section > summary:hover {
+  color: var(--text);
+}
+
+.section-body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
+  padding-top: 10px;
 }
 
 .panel label {

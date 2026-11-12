@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import { api, errorMessage } from './api'
 import type { Template } from './api'
+import { Section } from './Section'
 import { currentTemplateSettings, useEditor } from './store'
 
 const NAME_MAX = 50
@@ -53,8 +54,7 @@ export function Templates() {
   }, [load])
 
   return (
-    <section>
-      <h2>템플릿</h2>
+    <Section title="템플릿">
       <ul className="phrases">
         {items.map((template) => (
           <li key={template.id}>
@@ -98,6 +98,6 @@ export function Templates() {
         비율·그라데이션·제목 모양을 저장합니다. 같은 이름으로 저장하면 덮어씁니다.
       </p>
       {error && <p className="error">{error}</p>}
-    </section>
+    </Section>
   )
 }

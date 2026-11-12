@@ -1,4 +1,5 @@
 import { Phrases } from './Phrases'
+import { Section } from './Section'
 import { ZOOM_MAX, ZOOM_MIN, exportImage } from './stage'
 import { Templates } from './Templates'
 import {
@@ -57,8 +58,7 @@ export function Panel() {
         </button>
       </div>
 
-      <section>
-        <h2>사진</h2>
+      <Section title="사진" defaultOpen>
         <input
           type="file"
           accept="image/jpeg,image/png"
@@ -115,10 +115,9 @@ export function Panel() {
           />
         </label>
         <p className="hint">사진을 끌어 옮기고, 휠로 확대·축소합니다.</p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>비율</h2>
+      <Section title="비율" defaultOpen>
         <div className="segmented">
           {(Object.keys(RATIOS) as RatioKey[]).map((key) => (
             <button
@@ -131,10 +130,9 @@ export function Panel() {
             </button>
           ))}
         </div>
-      </section>
+      </Section>
 
-      <section>
-        <h2>하단 그라데이션</h2>
+      <Section title="하단 그라데이션">
         <label>
           높이 {Math.round(gradient.height * 100)}%
           <input
@@ -157,10 +155,9 @@ export function Panel() {
             onChange={(event) => setGradient({ opacity: Number(event.target.value) })}
           />
         </label>
-      </section>
+      </Section>
 
-      <section>
-        <h2>제목</h2>
+      <Section title="제목" defaultOpen>
         <textarea
           rows={3}
           value={title.text}
@@ -281,14 +278,13 @@ export function Panel() {
           ))}
         </div>
         <p className="hint">제목을 위아래로 끌어 위치를 정합니다.</p>
-      </section>
+      </Section>
 
       <Phrases />
 
       <Templates />
 
-      <section>
-        <h2>계정명·출처</h2>
+      <Section title="계정명·출처">
         <input
           type="text"
           value={footer.text}
@@ -308,7 +304,7 @@ export function Panel() {
           />
         </label>
         <p className="hint">하단에 작게 들어갑니다. 정렬은 제목을 따릅니다.</p>
-      </section>
+      </Section>
 
       <label className="inline">
         <input

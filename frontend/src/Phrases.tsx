@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { api, errorMessage } from './api'
 import type { SavedPhrase } from './api'
 import library from './phrases.json'
+import { Section } from './Section'
 import { useEditor } from './store'
 
 const MY_CATEGORY = '내 문구'
@@ -66,8 +67,7 @@ export function Phrases() {
   const alreadySaved = items.some((item) => item.text === currentText)
 
   return (
-    <section>
-      <h2>문구 추천</h2>
+    <Section title="문구 추천">
       <label>
         분류
         <select value={category} onChange={(event) => setCategory(event.target.value)}>
@@ -129,6 +129,6 @@ export function Phrases() {
         <p className="error">내 문구는 {PHRASE_MAX}자까지 저장할 수 있습니다.</p>
       )}
       {error && <p className="error">{error}</p>}
-    </section>
+    </Section>
   )
 }
