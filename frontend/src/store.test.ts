@@ -5,6 +5,7 @@ import {
   currentTemplateSettings,
   gridInset,
   useEditor,
+  zoomRange,
 } from './store'
 
 const initial = useEditor.getState()
@@ -37,6 +38,30 @@ describe('사진 맞춤', () => {
 
   it('coverScale 은 가로·세로 중 더 큰 배율', () => {
     expect(coverScale({ element: fakeImage(540, 1350), crop: null }, '4:5')).toBe(2)
+  })
+})
+
+describe('전체 보이게 / 확대 범위', () => {
+  it('전체 보이게는 사진 전체가 캔버스 안에 들어오고 가운데에 놓인다', () => {
+    const state = useEditor.getState
+    state().setImage(fakeImage(2000, 1000), new Blob())
+    state().fitImage('contain')
+    // 4:5(1080x1350): 가로 맞춤 0.54, 세로 맞춤 1.35 중 작은 쪽
+    expect(state().image).toMatchObject({ scale: 0.54, x: 0 })
+    expect(state().image!.y).toBeCloseTo((1350 - 1000 * 0.54) / 2)
+    state().fitImage('cover')
+    expect(state().image!.scale).toBeCloseTo(1.35)
+    state().undo()
+    expect(state().image!.scale).toBeCloseTo(0.54)
+  })
+
+  it('아주 길쭉한 사진은 확대 최소값이 0.5 아래로 내려가 전체가 보인다', () => {
+    const wide = { element: fakeImage(3000, 1000), crop: null }
+    // 3:1 사진: 채우기 1.35, 전체 보이게 0.36 → 최소 0.36/1.35 ≈ 0.27
+    expect(zoomRange(wide, '4:5').min).toBeCloseTo(0.36 / 1.35)
+    expect(zoomRange(wide, '4:5').max).toBe(5)
+    // 비율이 비슷한 사진은 기본 0.5 유지
+    expect(zoomRange({ element: fakeImage(1080, 1350), crop: null }, '4:5').min).toBe(0.5)
   })
 })
 

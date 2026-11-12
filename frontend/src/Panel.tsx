@@ -8,10 +8,9 @@ import { ReferenceImport } from './ReferenceImport'
 import { Phrases } from './Phrases'
 import { Projects } from './Projects'
 import { Section } from './Section'
-import { ZOOM_MAX, ZOOM_MIN } from './stage'
 import { Templates } from './Templates'
 import { UrlImport } from './UrlImport'
-import { CANVAS_WIDTH, RATIOS, coverScale, useEditor } from './store'
+import { CANVAS_WIDTH, RATIOS, ZOOM_MAX, coverScale, useEditor, zoomRange } from './store'
 import type { RatioKey, TitleAlign } from './store'
 
 const ALIGNS: { value: TitleAlign; label: string }[] = [
@@ -41,6 +40,7 @@ export function Panel() {
   const [cropping, setCropping] = useState(false)
   const cover = image ? coverScale(image, ratio) : 1
   const zoom = image ? image.scale / cover : 1
+  const range = image ? zoomRange(image, ratio) : { min: 0.5, max: ZOOM_MAX }
 
   return (
     <aside className="panel">
@@ -51,8 +51,8 @@ export function Panel() {
           label="확대"
           display={`${zoom.toFixed(2)}배`}
           value={zoom}
-          min={ZOOM_MIN}
-          max={ZOOM_MAX}
+          min={range.min}
+          max={range.max}
           step={0.01}
           disabled={!image}
           onChange={(value) => zoomImage(value * cover, CANVAS_WIDTH / 2, RATIOS[ratio] / 2)}
@@ -78,15 +78,21 @@ export function Panel() {
           onChange={(contrast) => setAdjust({ contrast })}
         />
         <div className="segmented">
-          <button type="button" disabled={!image} onClick={fitImage}>
-            화면에 맞춤
+          <button type="button" disabled={!image} onClick={() => fitImage('cover')}>
+            채우기
+          </button>
+          <button type="button" disabled={!image} onClick={() => fitImage('contain')}>
+            전체 보이게
           </button>
           <button type="button" disabled={!image} onClick={() => setCropping(true)}>
-            자르기{image?.crop ? ' (적용됨)' : ''}
+            자르기{image?.crop ? ' ✓' : ''}
           </button>
         </div>
         {cropping && <CropDialog onClose={() => setCropping(false)} />}
-        <p className="hint">사진을 끌어 옮기고, 휠로 확대·축소합니다.</p>
+        <p className="hint">
+          사진을 끌어 옮기고, 휠이나 슬라이더로 확대·축소합니다. "채우기"는 화면을 꽉 채우고(넘치는
+          부분은 잘림), "전체 보이게"는 사진 전체가 보이게 줄입니다(남는 곳은 검은 바탕).
+        </p>
       </Section>
 
       <Section title="비율" defaultOpen>

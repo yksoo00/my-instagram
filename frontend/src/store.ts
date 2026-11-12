@@ -174,7 +174,8 @@ interface EditorState extends Snapshot {
   setCrop: (crop: CropRect | null) => void
   moveImage: (x: number, y: number) => void
   zoomImage: (scale: number, originX: number, originY: number) => void
-  fitImage: () => void
+  /** cover: 캔버스를 꽉 채움(넘치는 부분은 잘림), contain: 사진 전체가 보이게 */
+  fitImage: (mode?: 'cover' | 'contain') => void
   setGradient: (patch: Partial<GradientState>) => void
   setTitle: (patch: Partial<TitleState>) => void
   setError: (error: string | null) => void
@@ -186,12 +187,37 @@ export function coverScale(image: Pick<ImageState, 'element' | 'crop'>, ratio: R
   return Math.max(CANVAS_WIDTH / width, RATIOS[ratio] / height)
 }
 
+/** 캔버스 안에 사진 전체가 들어오는 최대 배율. 한 변이 남아 검은 바탕이 보인다. */
+export function containScale(
+  image: Pick<ImageState, 'element' | 'crop'>,
+  ratio: RatioKey,
+): number {
+  const { width, height } = sourceSize(image)
+  return Math.min(CANVAS_WIDTH / width, RATIOS[ratio] / height)
+}
+
+export const ZOOM_MAX = 5
+const ZOOM_MIN_DEFAULT = 0.5
+
+/**
+ * 확대 범위(채우기 배율의 몇 배인지). 아주 길쭉한 사진은 0.5배로 줄여도 전체가 안 들어오므로,
+ * 최소값을 "전체가 보이는 배율"까지 내려 준다.
+ */
+export function zoomRange(
+  image: Pick<ImageState, 'element' | 'crop'>,
+  ratio: RatioKey,
+): { min: number; max: number } {
+  const contain = containScale(image, ratio) / coverScale(image, ratio)
+  return { min: Math.min(ZOOM_MIN_DEFAULT, contain), max: ZOOM_MAX }
+}
+
 function fit(
   source: Pick<ImageState, 'element' | 'blob' | 'crop'>,
   ratio: RatioKey,
+  mode: 'cover' | 'contain' = 'cover',
 ): ImageState {
   const { element, blob, crop } = source
-  const scale = coverScale(source, ratio)
+  const scale = mode === 'cover' ? coverScale(source, ratio) : containScale(source, ratio)
   const { width, height } = sourceSize(source)
   return {
     element,
@@ -368,10 +394,10 @@ export const useEditor = create<EditorState>((set) => ({
       }
     }),
 
-  fitImage: () =>
+  fitImage: (mode = 'cover') =>
     set((state) =>
       state.image
-        ? { ...record(state, null), image: fit(state.image, state.ratio) }
+        ? { ...record(state, null), image: fit(state.image, state.ratio, mode) }
         : {},
     ),
 

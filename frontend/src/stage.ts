@@ -4,9 +4,6 @@ import { CANVAS_WIDTH, RATIOS, allSlides, useEditor } from './store'
 /** Canvas 가 그린 Stage. 패널의 저장 버튼이 여기서 꺼내 쓴다. */
 export const stageRef: { current: Konva.Stage | null } = { current: null }
 
-// 확대 범위. 캔버스를 딱 덮는 배율 대비 몇 배인지.
-export const ZOOM_MIN = 0.5
-export const ZOOM_MAX = 5
 
 export type ExportFormat = 'png' | 'jpg'
 

@@ -8,13 +8,14 @@ import {
   coverScale,
   gridInset,
   sourceSize,
+  zoomRange,
   useEditor,
 } from './store'
 
 import { useCustomFonts } from './fontStore'
 import { OpenImage } from './Fields'
 import { Icon } from './Icon'
-import { ZOOM_MAX, ZOOM_MIN, stageRef } from './stage'
+import { stageRef } from './stage'
 import { layoutTitle } from './titleLayout'
 
 const ZOOM_STEP = 1.05
@@ -224,7 +225,8 @@ export function Canvas() {
     if (!image || !pointer) return
     const cover = coverScale(image, ratio)
     const next = image.scale * (event.evt.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)
-    const clamped = Math.min(cover * ZOOM_MAX, Math.max(cover * ZOOM_MIN, next))
+    const range = zoomRange(image, ratio)
+    const clamped = Math.min(cover * range.max, Math.max(cover * range.min, next))
     zoomImage(clamped, pointer.x / displayScale, pointer.y / displayScale)
   }
 
