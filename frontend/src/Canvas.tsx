@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Layer, Rect, Stage, Text } from 'react-konva'
-import type Konva from 'konva'
+import Konva from 'konva'
 import {
   CANVAS_WIDTH,
   RATIOS,
   TITLE_PADDING,
   coverScale,
+  gridInset,
   useEditor,
 } from './store'
 
@@ -13,6 +14,7 @@ import { ZOOM_MAX, ZOOM_MIN, stageRef } from './stage'
 import { layoutTitle } from './titleLayout'
 
 const ZOOM_STEP = 1.05
+const FOOTER_BOTTOM = 40
 
 let measureContext: CanvasRenderingContext2D | null = null
 
@@ -24,6 +26,69 @@ function measureWith(font: string): (text: string) => number {
     context.font = font
     return context.measureText(text).width
   }
+}
+
+function Photo() {
+  const image = useEditor((state) => state.image)
+  const { brightness, contrast } = useEditor((state) => state.adjust)
+  const moveImage = useEditor((state) => state.moveImage)
+  const nodeRef = useRef<Konva.Image>(null)
+  const element = image?.element
+
+  // Konva 필터는 캐시한 그림에만 적용된다. 보정이 0 이면 캐시를 풀어 원본 화질로 그린다.
+  useEffect(() => {
+    const node = nodeRef.current
+    if (!node) return
+    if (brightness === 0 && contrast === 0) {
+      node.clearCache()
+      node.filters([])
+    } else {
+      node.cache()
+      node.filters([Konva.Filters.Brighten, Konva.Filters.Contrast])
+      node.brightness(brightness)
+      node.contrast(contrast)
+    }
+    node.getLayer()?.batchDraw()
+  }, [element, brightness, contrast])
+
+  if (!image) return null
+  return (
+    <KonvaImage
+      ref={nodeRef}
+      image={image.element}
+      x={image.x}
+      y={image.y}
+      scaleX={image.scale}
+      scaleY={image.scale}
+      draggable
+      onDragEnd={(event) => moveImage(event.target.x(), event.target.y())}
+    />
+  )
+}
+
+function Footer() {
+  const footer = useEditor((state) => state.footer)
+  const ratio = useEditor((state) => state.ratio)
+  const fontFamily = useEditor((state) => state.title.fontFamily)
+  const align = useEditor((state) => state.title.align)
+  if (!footer.text.trim()) return null
+  return (
+    <Text
+      text={footer.text}
+      x={TITLE_PADDING}
+      y={RATIOS[ratio] - footer.fontSize - FOOTER_BOTTOM}
+      width={CANVAS_WIDTH - TITLE_PADDING * 2}
+      align={align}
+      fontFamily={fontFamily}
+      fontSize={footer.fontSize}
+      fill="#ffffff"
+      opacity={0.85}
+      shadowColor="#000000"
+      shadowBlur={8}
+      shadowOpacity={0.6}
+      listening={false}
+    />
+  )
 }
 
 function Title({ displayScale }: { displayScale: number }) {
@@ -96,7 +161,8 @@ function Title({ displayScale }: { displayScale: number }) {
 }
 
 export function Canvas() {
-  const { ratio, image, gradient, moveImage, zoomImage } = useEditor()
+  const { ratio, image, gradient, zoomImage, showGuide } = useEditor()
+  const inset = gridInset(ratio)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [area, setArea] = useState({ width: 0, height: 0 })
 
@@ -140,17 +206,7 @@ export function Canvas() {
           >
             <Layer>
               <Rect width={CANVAS_WIDTH} height={height} fill="#000000" listening={false} />
-              {image && (
-                <KonvaImage
-                  image={image.element}
-                  x={image.x}
-                  y={image.y}
-                  scaleX={image.scale}
-                  scaleY={image.scale}
-                  draggable
-                  onDragEnd={(event) => moveImage(event.target.x(), event.target.y())}
-                />
-              )}
+              <Photo />
               <Rect
                 y={height - gradientHeight}
                 width={CANVAS_WIDTH}
@@ -167,9 +223,22 @@ export function Canvas() {
                 ]}
                 listening={false}
               />
+              <Footer />
               <Title displayScale={displayScale} />
             </Layer>
           </Stage>
+          {showGuide && (
+            // Stage 밖의 덮개라서 저장 결과에는 들어가지 않는다.
+            <div
+              className="grid-guide"
+              style={{
+                left: inset.x * displayScale,
+                right: inset.x * displayScale,
+                top: inset.y * displayScale,
+                bottom: inset.y * displayScale,
+              }}
+            />
+          )}
           {!image && (
             <p className="canvas-empty">
               사진을 끌어다 놓거나 Ctrl+V 로 붙여넣으세요

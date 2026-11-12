@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { coverScale, currentTemplateSettings, useEditor } from './store'
+import { coverScale, currentTemplateSettings, gridInset, useEditor } from './store'
 
 const initial = useEditor.getState()
 
@@ -75,6 +75,39 @@ describe('되돌리기', () => {
     useEditor.getState().undo()
     useEditor.getState().setRatio('9:16')
     expect(useEditor.getState().future).toHaveLength(0)
+  })
+})
+
+describe('프로필 격자 안전 영역', () => {
+  it('4:5 는 좌우가, 9:16 은 상하가 잘린다', () => {
+    expect(gridInset('4:5')).toEqual({ x: 33.75, y: 0 })
+    expect(gridInset('1:1')).toEqual({ x: 135, y: 0 })
+    expect(gridInset('9:16')).toEqual({ x: 0, y: 240 })
+  })
+})
+
+describe('보정·푸터', () => {
+  it('되돌리기 대상이다', () => {
+    useEditor.getState().setAdjust({ brightness: 0.3 })
+    useEditor.getState().setFooter({ text: '@me' })
+    useEditor.getState().undo()
+    expect(useEditor.getState().footer.text).toBe('')
+    useEditor.getState().undo()
+    expect(useEditor.getState().adjust.brightness).toBe(0)
+  })
+
+  it('푸터는 템플릿에 들어가고, 푸터 없는 옛 템플릿은 지금 푸터를 유지한다', () => {
+    useEditor.getState().setFooter({ text: '@me', fontSize: 40 })
+    const settings = currentTemplateSettings()
+    expect(settings.footer).toEqual({ text: '@me', fontSize: 40 })
+
+    useEditor.getState().setFooter({ text: '다른 글' })
+    const { footer: _footer, ...old } = settings
+    useEditor.getState().applyTemplate(old)
+    expect(useEditor.getState().footer.text).toBe('다른 글')
+
+    useEditor.getState().applyTemplate(settings)
+    expect(useEditor.getState().footer.text).toBe('@me')
   })
 })
 

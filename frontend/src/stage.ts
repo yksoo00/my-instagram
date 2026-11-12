@@ -8,7 +8,11 @@ export const stageRef: { current: Konva.Stage | null } = { current: null }
 export const ZOOM_MIN = 0.5
 export const ZOOM_MAX = 5
 
-export function exportPng(): void {
+export type ExportFormat = 'png' | 'jpg'
+
+const JPG_QUALITY = 0.95
+
+export function exportImage(format: ExportFormat): void {
   const stage = stageRef.current
   if (!stage) return
   const height = RATIOS[useEditor.getState().ratio]
@@ -18,13 +22,18 @@ export function exportPng(): void {
   // 잠깐 원래 크기(1080 폭)로 돌려 그린 뒤 되돌린다.
   stage.size({ width: CANVAS_WIDTH, height })
   stage.scale({ x: 1, y: 1 })
-  const url = stage.toDataURL({ pixelRatio: 1, mimeType: 'image/png' })
+  // 바탕을 검은 Rect 로 채우므로 JPG 로 저장해도 투명 부분이 없다.
+  const url = stage.toDataURL({
+    pixelRatio: 1,
+    mimeType: format === 'png' ? 'image/png' : 'image/jpeg',
+    quality: JPG_QUALITY,
+  })
   stage.size({ width: previous.width, height: previous.height })
   stage.scale({ x: previous.scale, y: previous.scale })
   stage.batchDraw()
 
   const link = document.createElement('a')
   link.href = url
-  link.download = `instagram-${Date.now()}.png`
+  link.download = `instagram-${Date.now()}.${format}`
   link.click()
 }

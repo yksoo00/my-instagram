@@ -1,5 +1,5 @@
 import { Phrases } from './Phrases'
-import { ZOOM_MAX, ZOOM_MIN, exportPng } from './stage'
+import { ZOOM_MAX, ZOOM_MIN, exportImage } from './stage'
 import { Templates } from './Templates'
 import {
   CANVAS_WIDTH,
@@ -31,6 +31,12 @@ export function Panel() {
     setTitle,
     undo,
     redo,
+    adjust,
+    footer,
+    showGuide,
+    setAdjust,
+    setFooter,
+    setShowGuide,
   } = useEditor()
   const canUndo = useEditor((state) => state.past.length > 0)
   const canRedo = useEditor((state) => state.future.length > 0)
@@ -84,6 +90,30 @@ export function Panel() {
         <button type="button" disabled={!image} onClick={fitImage}>
           화면에 맞춤
         </button>
+        <label>
+          밝기 {Math.round(adjust.brightness * 100)}
+          <input
+            type="range"
+            min={-0.5}
+            max={0.5}
+            step={0.01}
+            value={adjust.brightness}
+            disabled={!image}
+            onChange={(event) => setAdjust({ brightness: Number(event.target.value) })}
+          />
+        </label>
+        <label>
+          대비 {adjust.contrast}
+          <input
+            type="range"
+            min={-50}
+            max={50}
+            step={1}
+            value={adjust.contrast}
+            disabled={!image}
+            onChange={(event) => setAdjust({ contrast: Number(event.target.value) })}
+          />
+        </label>
         <p className="hint">사진을 끌어 옮기고, 휠로 확대·축소합니다.</p>
       </section>
 
@@ -257,9 +287,46 @@ export function Panel() {
 
       <Templates />
 
-      <button type="button" className="primary" disabled={!image} onClick={exportPng}>
-        PNG 저장
-      </button>
+      <section>
+        <h2>계정명·출처</h2>
+        <input
+          type="text"
+          value={footer.text}
+          maxLength={100}
+          placeholder="예: @내계정 · 사진 출처"
+          onChange={(event) => setFooter({ text: event.target.value })}
+        />
+        <label>
+          크기 {footer.fontSize}px
+          <input
+            type="range"
+            min={16}
+            max={80}
+            step={1}
+            value={footer.fontSize}
+            onChange={(event) => setFooter({ fontSize: Number(event.target.value) })}
+          />
+        </label>
+        <p className="hint">하단에 작게 들어갑니다. 정렬은 제목을 따릅니다.</p>
+      </section>
+
+      <label className="inline">
+        <input
+          type="checkbox"
+          checked={showGuide}
+          onChange={(event) => setShowGuide(event.target.checked)}
+        />
+        프로필 격자 안전 영역 표시 (저장에는 안 나옴)
+      </label>
+
+      <div className="segmented">
+        <button type="button" className="primary" disabled={!image} onClick={() => exportImage('png')}>
+          PNG 저장
+        </button>
+        <button type="button" className="primary" disabled={!image} onClick={() => exportImage('jpg')}>
+          JPG 저장
+        </button>
+      </div>
     </aside>
   )
 }

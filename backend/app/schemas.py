@@ -35,10 +35,17 @@ class TitleStyle(Strict):
     shadow: bool
 
 
+class Footer(Strict):
+    text: str = Field(max_length=100)
+    fontSize: int = Field(ge=16, le=80)
+
+
 class TemplateSettings(Strict):
     ratio: Literal["4:5", "1:1", "9:16"]
     gradient: Gradient
     title: TitleStyle
+    # 푸터가 생기기 전에 저장한 템플릿도 읽을 수 있게 기본값을 둔다.
+    footer: Footer = Footer(text="", fontSize=32)
 
 
 class TemplateIn(Strict):

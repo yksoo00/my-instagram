@@ -24,12 +24,21 @@ def test_template_save_list_delete(client):
     saved = client.post("/api/templates", json={"name": " 기본 ", "settings": SETTINGS})
     assert saved.status_code == 200
     assert saved.json()["name"] == "기본"
-    assert saved.json()["settings"] == SETTINGS
+    assert saved.json()["settings"] == {**SETTINGS, "footer": {"text": "", "fontSize": 32}}
 
     assert [t["name"] for t in client.get("/api/templates").json()] == ["기본"]
 
     assert client.delete(f"/api/templates/{saved.json()['id']}").status_code == 204
     assert client.get("/api/templates").json() == []
+
+
+def test_template_footer_defaults_for_old_templates(client):
+    saved = client.post("/api/templates", json={"name": "옛것", "settings": SETTINGS})
+    assert saved.json()["settings"]["footer"] == {"text": "", "fontSize": 32}
+
+    with_footer = {**SETTINGS, "footer": {"text": "@me", "fontSize": 40}}
+    saved = client.post("/api/templates", json={"name": "옛것", "settings": with_footer})
+    assert saved.json()["settings"]["footer"] == {"text": "@me", "fontSize": 40}
 
 
 def test_template_same_name_overwrites(client):

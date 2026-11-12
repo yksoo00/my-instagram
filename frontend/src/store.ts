@@ -52,12 +52,39 @@ export interface TitleState {
   shadow: boolean
 }
 
+/** 사진 보정. 0 이 원본이다. */
+export interface AdjustState {
+  /** -1 ~ 1 */
+  brightness: number
+  /** -100 ~ 100 (Konva Contrast 필터 단위) */
+  contrast: number
+}
+
+/** 하단 모서리의 계정명·출처 표기. 빈 문자열이면 그리지 않는다. */
+export interface FooterState {
+  text: string
+  fontSize: number
+}
+
+/**
+ * 인스타 프로필 격자는 게시물 가운데를 3:4 로 잘라 보여 준다.
+ * 잘리지 않고 보이는 영역이 캔버스 가장자리에서 얼마나 안쪽인지 (1080 폭 기준 좌표).
+ */
+export function gridInset(ratio: RatioKey): { x: number; y: number } {
+  const height = RATIOS[ratio]
+  const visibleWidth = Math.min(CANVAS_WIDTH, (height * 3) / 4)
+  const visibleHeight = Math.min(height, (CANVAS_WIDTH * 4) / 3)
+  return { x: (CANVAS_WIDTH - visibleWidth) / 2, y: (height - visibleHeight) / 2 }
+}
+
 /** 되돌리기 대상. 오류 문구 같은 화면 상태는 넣지 않는다. */
 interface Snapshot {
   ratio: RatioKey
   image: ImageState | null
+  adjust: AdjustState
   gradient: GradientState
   title: TitleState
+  footer: FooterState
 }
 
 /** 템플릿으로 저장하는 값. 사진과 제목 글은 게시물마다 달라서 뺀다. */
@@ -65,12 +92,19 @@ export interface TemplateSettings {
   ratio: RatioKey
   gradient: GradientState
   title: Omit<TitleState, 'text'>
+  /** 계정명은 게시물마다 반복되므로 템플릿에 넣는다. 예전에 저장한 템플릿에는 없다. */
+  footer?: FooterState
 }
 
 interface EditorState extends Snapshot {
   past: Snapshot[]
   future: Snapshot[]
   error: string | null
+  /** 화면 보조선. 되돌리기·저장 대상이 아니다. */
+  showGuide: boolean
+  setShowGuide: (show: boolean) => void
+  setAdjust: (patch: Partial<AdjustState>) => void
+  setFooter: (patch: Partial<FooterState>) => void
   applyTemplate: (settings: TemplateSettings) => void
   undo: () => void
   redo: () => void
@@ -113,8 +147,10 @@ function snapshot(state: Snapshot): Snapshot {
   return {
     ratio: state.ratio,
     image: state.image,
+    adjust: state.adjust,
     gradient: state.gradient,
     title: state.title,
+    footer: state.footer,
   }
 }
 
@@ -165,6 +201,9 @@ export const useEditor = create<EditorState>((set) => ({
 
   ratio: DEFAULT_RATIO,
   image: null,
+  adjust: { brightness: 0, contrast: 0 },
+  footer: { text: '', fontSize: 32 },
+  showGuide: false,
   gradient: { height: 0.5, opacity: 0.9 },
   title: {
     text: '제목을 입력하세요',
@@ -247,6 +286,20 @@ export const useEditor = create<EditorState>((set) => ({
 
   setError: (error) => set({ error }),
 
+  setShowGuide: (showGuide) => set({ showGuide }),
+
+  setAdjust: (patch) =>
+    set((state) => ({
+      ...record(state, `adjust:${Object.keys(patch).join()}`),
+      adjust: { ...state.adjust, ...patch },
+    })),
+
+  setFooter: (patch) =>
+    set((state) => ({
+      ...record(state, `footer:${Object.keys(patch).join()}`),
+      footer: { ...state.footer, ...patch },
+    })),
+
   applyTemplate: (settings) =>
     set((state) => ({
       ...record(state, null),
@@ -254,13 +307,14 @@ export const useEditor = create<EditorState>((set) => ({
       image: state.image ? fit(state.image.element, settings.ratio) : null,
       gradient: settings.gradient,
       title: { ...settings.title, text: state.title.text },
+      footer: settings.footer ?? state.footer,
     })),
 }))
 
 export function currentTemplateSettings(): TemplateSettings {
-  const { ratio, gradient, title } = useEditor.getState()
+  const { ratio, gradient, title, footer } = useEditor.getState()
   const { text: _text, ...style } = title
-  return { ratio, gradient, title: style }
+  return { ratio, gradient, title: style, footer }
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png']
