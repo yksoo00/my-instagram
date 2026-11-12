@@ -10,6 +10,8 @@ import {
   useEditor,
 } from './store'
 
+import { OpenImage } from './Fields'
+import { Icon } from './Icon'
 import { ZOOM_MAX, ZOOM_MIN, stageRef } from './stage'
 import { layoutTitle } from './titleLayout'
 
@@ -268,9 +270,12 @@ export function Canvas() {
             />
           )}
           {!image && (
-            <p className="canvas-empty">
-              사진을 끌어다 놓거나 Ctrl+V 로 붙여넣으세요
-            </p>
+            <div className="canvas-empty">
+              <Icon name="upload" size={36} />
+              <p>사진을 끌어다 놓거나 Ctrl+V 로 붙여넣으세요</p>
+              <OpenImage className="primary">사진 열기</OpenImage>
+              <small>JPG · PNG</small>
+            </div>
           )}
         </div>
       )}

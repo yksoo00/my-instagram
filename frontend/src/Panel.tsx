@@ -1,16 +1,10 @@
+import { ColorField, Field, Slider, Toggle } from './Fields'
 import { Phrases } from './Phrases'
 import { Projects } from './Projects'
 import { Section } from './Section'
-import { ZOOM_MAX, ZOOM_MIN, exportAll, exportImage } from './stage'
+import { ZOOM_MAX, ZOOM_MIN } from './stage'
 import { Templates } from './Templates'
-import {
-  CANVAS_WIDTH,
-  FONTS,
-  RATIOS,
-  coverScale,
-  loadImageFile,
-  useEditor,
-} from './store'
+import { CANVAS_WIDTH, FONTS, RATIOS, coverScale, useEditor } from './store'
 import type { RatioKey, TitleAlign } from './store'
 
 const ALIGNS: { value: TitleAlign; label: string }[] = [
@@ -31,140 +25,52 @@ export function Panel() {
     fitImage,
     setGradient,
     setTitle,
-    undo,
-    redo,
     adjust,
     footer,
-    showGuide,
     setAdjust,
     setFooter,
-    setShowGuide,
-    slides,
-    activeSlide,
-    numbering,
-    setNumbering,
-    addSlide,
-    selectSlide,
-    removeSlide,
   } = useEditor()
-  // 지금 장의 사진은 최상위 image, 나머지 장은 목록에 있다.
-  const hasAnyImage = !!image || slides.some((slide) => slide.image)
-  const canUndo = useEditor((state) => state.past.length > 0)
-  const canRedo = useEditor((state) => state.future.length > 0)
 
   const cover = image ? coverScale(image.element, ratio) : 1
   const zoom = image ? image.scale / cover : 1
 
   return (
     <aside className="panel">
-      <h1>MY INSTAGRAM STUDIO</h1>
-
-      <div className="segmented">
-        <button type="button" disabled={!canUndo} onClick={undo}>
-          되돌리기
-        </button>
-        <button type="button" disabled={!canRedo} onClick={redo}>
-          다시 실행
-        </button>
-      </div>
-
-      <Section title="슬라이드 (여러 장)" defaultOpen>
-        <div className="slides">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              type="button"
-              className={index === activeSlide ? 'active' : ''}
-              onClick={() => selectSlide(index)}
-            >
-              {index + 1}
-            </button>
-          ))}
-          <button type="button" onClick={addSlide}>
-            + 추가
-          </button>
-        </div>
-        <button type="button" disabled={slides.length <= 1} onClick={() => removeSlide(activeSlide)}>
-          현재 장 삭제
-        </button>
-        <label className="inline">
-          <input
-            type="checkbox"
-            checked={numbering}
-            onChange={(event) => setNumbering(event.target.checked)}
-          />
-          오른쪽 위에 번호 표시 (예: 2/5)
-        </label>
-        <div className="segmented">
-          <button type="button" disabled={!hasAnyImage} onClick={() => void exportAll('png')}>
-            전체 PNG
-          </button>
-          <button type="button" disabled={!hasAnyImage} onClick={() => void exportAll('jpg')}>
-            전체 JPG
-          </button>
-        </div>
-        <p className="hint">
-          비율·그라데이션·제목 모양은 모든 장이 같이 씁니다. 사진·제목 글·보정만 장마다 다릅니다.
-          사진 없는 장은 저장하지 않습니다. 브라우저가 여러 파일 다운로드 허용을 물으면 허용하세요.
-        </p>
-      </Section>
-
       <Section title="사진" defaultOpen>
-        <input
-          type="file"
-          accept="image/jpeg,image/png"
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            if (file) loadImageFile(file)
-            event.target.value = ''
-          }}
-        />
         {error && <p className="error">{error}</p>}
-        <label>
-          확대 {zoom.toFixed(2)}배
-          <input
-            type="range"
-            min={ZOOM_MIN}
-            max={ZOOM_MAX}
-            step={0.01}
-            value={zoom}
-            disabled={!image}
-            onChange={(event) =>
-              zoomImage(
-                Number(event.target.value) * cover,
-                CANVAS_WIDTH / 2,
-                RATIOS[ratio] / 2,
-              )
-            }
-          />
-        </label>
+        <Slider
+          label="확대"
+          display={`${zoom.toFixed(2)}배`}
+          value={zoom}
+          min={ZOOM_MIN}
+          max={ZOOM_MAX}
+          step={0.01}
+          disabled={!image}
+          onChange={(value) => zoomImage(value * cover, CANVAS_WIDTH / 2, RATIOS[ratio] / 2)}
+        />
+        <Slider
+          label="밝기"
+          display={String(Math.round(adjust.brightness * 100))}
+          value={adjust.brightness}
+          min={-0.5}
+          max={0.5}
+          step={0.01}
+          disabled={!image}
+          onChange={(brightness) => setAdjust({ brightness })}
+        />
+        <Slider
+          label="대비"
+          display={String(adjust.contrast)}
+          value={adjust.contrast}
+          min={-50}
+          max={50}
+          step={1}
+          disabled={!image}
+          onChange={(contrast) => setAdjust({ contrast })}
+        />
         <button type="button" disabled={!image} onClick={fitImage}>
           화면에 맞춤
         </button>
-        <label>
-          밝기 {Math.round(adjust.brightness * 100)}
-          <input
-            type="range"
-            min={-0.5}
-            max={0.5}
-            step={0.01}
-            value={adjust.brightness}
-            disabled={!image}
-            onChange={(event) => setAdjust({ brightness: Number(event.target.value) })}
-          />
-        </label>
-        <label>
-          대비 {adjust.contrast}
-          <input
-            type="range"
-            min={-50}
-            max={50}
-            step={1}
-            value={adjust.contrast}
-            disabled={!image}
-            onChange={(event) => setAdjust({ contrast: Number(event.target.value) })}
-          />
-        </label>
         <p className="hint">사진을 끌어 옮기고, 휠로 확대·축소합니다.</p>
       </Section>
 
@@ -183,31 +89,6 @@ export function Panel() {
         </div>
       </Section>
 
-      <Section title="하단 그라데이션">
-        <label>
-          높이 {Math.round(gradient.height * 100)}%
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={gradient.height}
-            onChange={(event) => setGradient({ height: Number(event.target.value) })}
-          />
-        </label>
-        <label>
-          농도 {Math.round(gradient.opacity * 100)}%
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={gradient.opacity}
-            onChange={(event) => setGradient({ opacity: Number(event.target.value) })}
-          />
-        </label>
-      </Section>
-
       <Section title="제목" defaultOpen>
         <textarea
           rows={3}
@@ -215,8 +96,7 @@ export function Panel() {
           onChange={(event) => setTitle({ text: event.target.value })}
         />
         <p className="hint">*단어*처럼 별표로 감싸면 강조 색으로 칠합니다.</p>
-        <label>
-          글꼴
+        <Field label="글꼴">
           <select
             value={title.fontFamily}
             onChange={(event) => setTitle({ fontFamily: event.target.value })}
@@ -227,95 +107,7 @@ export function Panel() {
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          크기 {title.fontSize}px
-          <input
-            type="range"
-            min={30}
-            max={200}
-            step={1}
-            value={title.fontSize}
-            onChange={(event) => setTitle({ fontSize: Number(event.target.value) })}
-          />
-        </label>
-        <label>
-          줄 간격 {title.lineHeight.toFixed(2)}
-          <input
-            type="range"
-            min={0.8}
-            max={2}
-            step={0.05}
-            value={title.lineHeight}
-            onChange={(event) => setTitle({ lineHeight: Number(event.target.value) })}
-          />
-        </label>
-        <label>
-          자간 {title.letterSpacing}px
-          <input
-            type="range"
-            min={-10}
-            max={30}
-            step={1}
-            value={title.letterSpacing}
-            onChange={(event) => setTitle({ letterSpacing: Number(event.target.value) })}
-          />
-        </label>
-        <label>
-          외곽선 {title.strokeWidth}px
-          <input
-            type="range"
-            min={0}
-            max={24}
-            step={1}
-            value={title.strokeWidth}
-            onChange={(event) => setTitle({ strokeWidth: Number(event.target.value) })}
-          />
-        </label>
-        <div className="row">
-          <label className="inline">
-            외곽선 색
-            <input
-              type="color"
-              value={title.strokeColor}
-              onChange={(event) => setTitle({ strokeColor: event.target.value })}
-            />
-          </label>
-          <label className="inline">
-            <input
-              type="checkbox"
-              checked={title.shadow}
-              onChange={(event) => setTitle({ shadow: event.target.checked })}
-            />
-            그림자
-          </label>
-        </div>
-        <div className="row">
-          <label className="inline">
-            색상
-            <input
-              type="color"
-              value={title.color}
-              onChange={(event) => setTitle({ color: event.target.value })}
-            />
-          </label>
-          <label className="inline">
-            강조 색
-            <input
-              type="color"
-              value={title.accentColor}
-              onChange={(event) => setTitle({ accentColor: event.target.value })}
-            />
-          </label>
-          <label className="inline">
-            <input
-              type="checkbox"
-              checked={title.bold}
-              onChange={(event) => setTitle({ bold: event.target.checked })}
-            />
-            굵게
-          </label>
-        </div>
+        </Field>
         <div className="segmented">
           {ALIGNS.map((align) => (
             <button
@@ -328,14 +120,84 @@ export function Panel() {
             </button>
           ))}
         </div>
+        <Slider
+          label="크기"
+          display={`${title.fontSize}px`}
+          value={title.fontSize}
+          min={30}
+          max={200}
+          step={1}
+          onChange={(fontSize) => setTitle({ fontSize })}
+        />
+        <Slider
+          label="줄 간격"
+          display={title.lineHeight.toFixed(2)}
+          value={title.lineHeight}
+          min={0.8}
+          max={2}
+          step={0.05}
+          onChange={(lineHeight) => setTitle({ lineHeight })}
+        />
+        <Slider
+          label="자간"
+          display={`${title.letterSpacing}px`}
+          value={title.letterSpacing}
+          min={-10}
+          max={30}
+          step={1}
+          onChange={(letterSpacing) => setTitle({ letterSpacing })}
+        />
+        <Slider
+          label="외곽선"
+          display={`${title.strokeWidth}px`}
+          value={title.strokeWidth}
+          min={0}
+          max={24}
+          step={1}
+          onChange={(strokeWidth) => setTitle({ strokeWidth })}
+        />
+        <div className="color-row">
+          <ColorField label="글자" value={title.color} onChange={(color) => setTitle({ color })} />
+          <ColorField
+            label="강조"
+            value={title.accentColor}
+            onChange={(accentColor) => setTitle({ accentColor })}
+          />
+          <ColorField
+            label="외곽선"
+            value={title.strokeColor}
+            onChange={(strokeColor) => setTitle({ strokeColor })}
+          />
+        </div>
+        <Toggle checked={title.bold} onChange={(bold) => setTitle({ bold })}>
+          굵게
+        </Toggle>
+        <Toggle checked={title.shadow} onChange={(shadow) => setTitle({ shadow })}>
+          그림자
+        </Toggle>
         <p className="hint">제목을 위아래로 끌어 위치를 정합니다.</p>
       </Section>
 
-      <Phrases />
-
-      <Templates />
-
-      <Projects />
+      <Section title="하단 그라데이션">
+        <Slider
+          label="높이"
+          display={`${Math.round(gradient.height * 100)}%`}
+          value={gradient.height}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(height) => setGradient({ height })}
+        />
+        <Slider
+          label="농도"
+          display={`${Math.round(gradient.opacity * 100)}%`}
+          value={gradient.opacity}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(opacity) => setGradient({ opacity })}
+        />
+      </Section>
 
       <Section title="계정명·출처">
         <input
@@ -345,37 +207,23 @@ export function Panel() {
           placeholder="예: @내계정 · 사진 출처"
           onChange={(event) => setFooter({ text: event.target.value })}
         />
-        <label>
-          크기 {footer.fontSize}px
-          <input
-            type="range"
-            min={16}
-            max={80}
-            step={1}
-            value={footer.fontSize}
-            onChange={(event) => setFooter({ fontSize: Number(event.target.value) })}
-          />
-        </label>
+        <Slider
+          label="크기"
+          display={`${footer.fontSize}px`}
+          value={footer.fontSize}
+          min={16}
+          max={80}
+          step={1}
+          onChange={(fontSize) => setFooter({ fontSize })}
+        />
         <p className="hint">하단에 작게 들어갑니다. 정렬은 제목을 따릅니다.</p>
       </Section>
 
-      <label className="inline">
-        <input
-          type="checkbox"
-          checked={showGuide}
-          onChange={(event) => setShowGuide(event.target.checked)}
-        />
-        프로필 격자 안전 영역 표시 (저장에는 안 나옴)
-      </label>
+      <Phrases />
 
-      <div className="segmented">
-        <button type="button" className="primary" disabled={!image} onClick={() => exportImage('png')}>
-          PNG 저장
-        </button>
-        <button type="button" className="primary" disabled={!image} onClick={() => exportImage('jpg')}>
-          JPG 저장
-        </button>
-      </div>
+      <Templates />
+
+      <Projects />
     </aside>
   )
 }
