@@ -33,6 +33,7 @@ export function Panel() {
     zoomImage,
     fitImage,
     stretchImage,
+    stretchToEdge,
     setGradient,
     setTitle,
     adjust,
@@ -66,7 +67,7 @@ export function Panel() {
           display={`${Math.round((image?.stretchX ?? 1) * 100)}%`}
           value={image?.stretchX ?? 1}
           min={STRETCH_MIN}
-          max={STRETCH_MAX}
+          max={Math.max(STRETCH_MAX, image?.stretchX ?? 1)}
           step={0.01}
           disabled={!image}
           onChange={(stretchX) => stretchImage({ stretchX })}
@@ -76,11 +77,19 @@ export function Panel() {
           display={`${Math.round((image?.stretchY ?? 1) * 100)}%`}
           value={image?.stretchY ?? 1}
           min={STRETCH_MIN}
-          max={STRETCH_MAX}
+          max={Math.max(STRETCH_MAX, image?.stretchY ?? 1)}
           step={0.01}
           disabled={!image}
           onChange={(stretchY) => stretchImage({ stretchY })}
         />
+        <div className="segmented">
+          <button type="button" disabled={!image} onClick={() => stretchToEdge('x')}>
+            가로 꽉 채우기
+          </button>
+          <button type="button" disabled={!image} onClick={() => stretchToEdge('y')}>
+            세로 꽉 채우기
+          </button>
+        </div>
         <button
           type="button"
           disabled={!image || (image.stretchX === 1 && image.stretchY === 1)}

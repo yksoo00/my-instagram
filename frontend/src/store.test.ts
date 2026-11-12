@@ -91,6 +91,33 @@ describe('가로·세로 따로 늘이기', () => {
     expect(state().image).toMatchObject({ stretchX: 1, stretchY: 1 })
   })
 
+  it('가로 꽉 채우기는 가로만 캔버스 폭까지 늘리고 세로·세로 위치는 그대로 둔다', () => {
+    const state = setup()
+    state().zoomImage(0.5, 540, 675) // 540x675 로 줄임
+    state().moveImage(100, 200)
+    state().stretchToEdge('x')
+    expect(displaySize(state().image!)).toEqual({ width: 1080, height: 675 })
+    expect(state().image).toMatchObject({ x: 0, y: 200, stretchY: 1 })
+  })
+
+  it('세로 꽉 채우기는 세로만 캔버스 높이까지 늘리고 가로·가로 위치는 그대로 둔다', () => {
+    const state = setup()
+    state().zoomImage(0.5, 540, 675)
+    state().moveImage(100, 200)
+    state().stretchToEdge('y')
+    expect(displaySize(state().image!)).toEqual({ width: 540, height: 1350 })
+    expect(state().image).toMatchObject({ x: 100, y: 0, stretchX: 1 })
+  })
+
+  it('비율에 맞춰 바뀌고, 이미 늘어난 상태에서도 되돌리기 된다', () => {
+    const state = setup()
+    state().setRatio('9:16') // 1080x1920
+    state().stretchToEdge('y')
+    expect(displaySize(state().image!).height).toBe(1920)
+    state().undo()
+    expect(state().image!.stretchY).toBe(1)
+  })
+
   it('확대(휠·슬라이더)는 늘이기를 유지한 채 전체 크기만 바꾼다', () => {
     const state = setup()
     state().stretchImage({ stretchX: 2 })

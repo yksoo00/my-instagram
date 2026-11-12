@@ -192,6 +192,8 @@ interface EditorState extends Snapshot {
   stretchImage: (patch: { stretchX?: number; stretchY?: number }) => void
   /** 캔버스에서 손잡이로 끈 결과를 한 번에 반영한다(되돌리기 한 단계). */
   transformImage: (next: { x: number; y: number; scale: number; stretchX: number; stretchY: number }) => void
+  /** 가로(x) 또는 세로(y) 한쪽만 캔버스 끝까지 늘린다. 다른 방향 크기와 위치는 그대로. */
+  stretchToEdge: (axis: 'x' | 'y') => void
   /** 캔버스에서 사진이 선택돼 손잡이가 보이는지. 화면 상태라서 되돌리기·저장 대상이 아니다. */
   photoSelected: boolean
   setPhotoSelected: (selected: boolean) => void
@@ -437,6 +439,23 @@ export const useEditor = create<EditorState>((set) => ({
           y: image.y + (before.height - after.height) / 2,
         },
       }
+    }),
+
+  stretchToEdge: (axis) =>
+    set((state) => {
+      const image = state.image
+      if (!image) return {}
+      const source = sourceSize(image)
+      // 늘이기 배율이 아니라 전체 크기(캔버스 좌표)가 캔버스 한 변과 같아지게 정한다.
+      return axis === 'x'
+        ? {
+            ...record(state, null),
+            image: { ...image, stretchX: CANVAS_WIDTH / (source.width * image.scale), x: 0 },
+          }
+        : {
+            ...record(state, null),
+            image: { ...image, stretchY: RATIOS[state.ratio] / (source.height * image.scale), y: 0 },
+          }
     }),
 
   transformImage: (next) =>
