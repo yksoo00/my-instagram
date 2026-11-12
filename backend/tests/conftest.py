@@ -15,10 +15,13 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
     """테스트마다 빈 SQLite 파일과 빈 업로드 폴더를 쓴다. 실제 data/ 는 건드리지 않는다."""
     monkeypatch.setattr(db, "UPLOAD_DIR", tmp_path / "uploads")
     monkeypatch.setattr(db, "FONT_DIR", tmp_path / "fonts")
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(db, "DB_FILE", tmp_path / "test.db")
     engine = create_engine(
         f"sqlite:///{tmp_path / 'test.db'}", connect_args={"check_same_thread": False}
     )
     Base.metadata.create_all(engine)
+    monkeypatch.setattr(db, "engine", engine)  # 백업·복원이 테스트용 엔진을 쓰게
 
     def override() -> Iterator[Session]:
         with Session(engine, expire_on_commit=False) as session:

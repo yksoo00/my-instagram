@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Backup } from './Backup'
 import { CropDialog } from './CropDialog'
 import { CustomFonts } from './CustomFonts'
 import { ColorField, Field, Slider, Toggle } from './Fields'
@@ -236,6 +237,8 @@ export function Panel() {
       <Templates />
 
       <Projects />
+
+      <Backup />
     </aside>
   )
 }

@@ -1,4 +1,6 @@
-﻿import re
+﻿import os
+import re
+import tempfile
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -12,7 +14,9 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import db, remote_image
+from starlette.background import BackgroundTask
+
+from app import backup, db, remote_image
 from app.db import DATA_DIR, Base, engine, get_session
 from app.models import Font, Phrase, Project, Template
 from app.schemas import (
@@ -248,6 +252,56 @@ def delete_font(font_id: int, session: SessionDep) -> Response:
         session.delete(font)
         session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/api/backup")
+def download_backup() -> FileResponse:
+    """data/ 전체(DB·사진·글꼴)를 zip 하나로 받는다."""
+    handle, name = tempfile.mkstemp(suffix=".zip")
+    os.close(handle)
+    path = Path(name)
+    try:
+        with backup.lock:
+            backup.create_backup(db.DB_FILE, db.UPLOAD_DIR, db.FONT_DIR, path)
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+    return FileResponse(
+        path,
+        media_type="application/zip",
+        filename=f"insta-studio-backup-{backup.timestamp()}.zip",
+        background=BackgroundTask(path.unlink, missing_ok=True),
+    )
+
+
+@app.post("/api/backup/restore")
+async def restore_backup(file: UploadFile) -> dict[str, str]:
+    """백업 zip 으로 데이터를 통째로 바꾼다. 바꾸기 전 데이터는 data/backups 에 zip 으로 남는다."""
+    handle, name = tempfile.mkstemp(suffix=".zip")
+    path = Path(name)
+    try:
+        with os.fdopen(handle, "wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                out.write(chunk)
+
+        def reopen_tables() -> None:
+            Base.metadata.create_all(db.engine)  # 옛 백업에 없던 테이블을 채운다
+
+        with backup.lock:
+            safety = backup.restore_backup(
+                path,
+                db.DB_FILE,
+                db.UPLOAD_DIR,
+                db.FONT_DIR,
+                db.DATA_DIR / "backups",
+                before_swap=db.engine.dispose,
+                after_swap=reopen_tables,
+            )
+    except backup.BackupError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+    finally:
+        path.unlink(missing_ok=True)
+    return {"safety_backup": safety.name}
 
 
 @app.get("/api/phrases", response_model=list[PhraseOut])
