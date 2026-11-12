@@ -1,6 +1,6 @@
 import { Phrases } from './Phrases'
 import { Section } from './Section'
-import { ZOOM_MAX, ZOOM_MIN, exportImage } from './stage'
+import { ZOOM_MAX, ZOOM_MIN, exportAll, exportImage } from './stage'
 import { Templates } from './Templates'
 import {
   CANVAS_WIDTH,
@@ -38,7 +38,16 @@ export function Panel() {
     setAdjust,
     setFooter,
     setShowGuide,
+    slides,
+    activeSlide,
+    numbering,
+    setNumbering,
+    addSlide,
+    selectSlide,
+    removeSlide,
   } = useEditor()
+  // 지금 장의 사진은 최상위 image, 나머지 장은 목록에 있다.
+  const hasAnyImage = !!image || slides.some((slide) => slide.image)
   const canUndo = useEditor((state) => state.past.length > 0)
   const canRedo = useEditor((state) => state.future.length > 0)
 
@@ -57,6 +66,47 @@ export function Panel() {
           다시 실행
         </button>
       </div>
+
+      <Section title="슬라이드 (여러 장)" defaultOpen>
+        <div className="slides">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              type="button"
+              className={index === activeSlide ? 'active' : ''}
+              onClick={() => selectSlide(index)}
+            >
+              {index + 1}
+            </button>
+          ))}
+          <button type="button" onClick={addSlide}>
+            + 추가
+          </button>
+        </div>
+        <button type="button" disabled={slides.length <= 1} onClick={() => removeSlide(activeSlide)}>
+          현재 장 삭제
+        </button>
+        <label className="inline">
+          <input
+            type="checkbox"
+            checked={numbering}
+            onChange={(event) => setNumbering(event.target.checked)}
+          />
+          오른쪽 위에 번호 표시 (예: 2/5)
+        </label>
+        <div className="segmented">
+          <button type="button" disabled={!hasAnyImage} onClick={() => void exportAll('png')}>
+            전체 PNG
+          </button>
+          <button type="button" disabled={!hasAnyImage} onClick={() => void exportAll('jpg')}>
+            전체 JPG
+          </button>
+        </div>
+        <p className="hint">
+          비율·그라데이션·제목 모양은 모든 장이 같이 씁니다. 사진·제목 글·보정만 장마다 다릅니다.
+          사진 없는 장은 저장하지 않습니다. 브라우저가 여러 파일 다운로드 허용을 물으면 허용하세요.
+        </p>
+      </Section>
 
       <Section title="사진" defaultOpen>
         <input

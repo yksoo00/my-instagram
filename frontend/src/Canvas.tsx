@@ -15,6 +15,7 @@ import { layoutTitle } from './titleLayout'
 
 const ZOOM_STEP = 1.05
 const FOOTER_BOTTOM = 40
+const NUMBERING_TOP = 40
 
 let measureContext: CanvasRenderingContext2D | null = null
 
@@ -83,6 +84,32 @@ function Footer() {
       fontSize={footer.fontSize}
       fill="#ffffff"
       opacity={0.85}
+      shadowColor="#000000"
+      shadowBlur={8}
+      shadowOpacity={0.6}
+      listening={false}
+    />
+  )
+}
+
+function Numbering() {
+  const numbering = useEditor((state) => state.numbering)
+  const total = useEditor((state) => state.slides.length)
+  const active = useEditor((state) => state.activeSlide)
+  const fontFamily = useEditor((state) => state.title.fontFamily)
+  if (!numbering) return null
+  return (
+    <Text
+      text={`${active + 1}/${total}`}
+      x={TITLE_PADDING}
+      y={NUMBERING_TOP}
+      width={CANVAS_WIDTH - TITLE_PADDING * 2}
+      align="right"
+      fontFamily={fontFamily}
+      fontStyle="bold"
+      fontSize={36}
+      fill="#ffffff"
+      opacity={0.9}
       shadowColor="#000000"
       shadowBlur={8}
       shadowOpacity={0.6}
@@ -224,6 +251,7 @@ export function Canvas() {
                 listening={false}
               />
               <Footer />
+              <Numbering />
               <Title displayScale={displayScale} />
             </Layer>
           </Stage>

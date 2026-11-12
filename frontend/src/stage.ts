@@ -1,5 +1,5 @@
 import type Konva from 'konva'
-import { CANVAS_WIDTH, RATIOS, useEditor } from './store'
+import { CANVAS_WIDTH, RATIOS, allSlides, useEditor } from './store'
 
 /** Canvas 가 그린 Stage. 패널의 저장 버튼이 여기서 꺼내 쓴다. */
 export const stageRef: { current: Konva.Stage | null } = { current: null }
@@ -12,7 +12,7 @@ export type ExportFormat = 'png' | 'jpg'
 
 const JPG_QUALITY = 0.95
 
-export function exportImage(format: ExportFormat): void {
+export function exportImage(format: ExportFormat, name = String(Date.now())): void {
   const stage = stageRef.current
   if (!stage) return
   const height = RATIOS[useEditor.getState().ratio]
@@ -34,6 +34,29 @@ export function exportImage(format: ExportFormat): void {
 
   const link = document.createElement('a')
   link.href = url
-  link.download = `instagram-${Date.now()}.${format}`
+  link.download = `instagram-${name}.${format}`
   link.click()
+}
+
+/** React 가 장을 바꿔 그리고 Konva 가 화면에 반영할 때까지 기다린다. */
+function afterRender(): Promise<void> {
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  )
+}
+
+/** 사진이 있는 모든 장을 차례로 저장한다. 끝나면 보던 장으로 돌아온다. */
+export async function exportAll(format: ExportFormat): Promise<void> {
+  const { activeSlide, past, future } = useEditor.getState()
+  const stamp = Date.now()
+  const slides = allSlides()
+  for (let index = 0; index < slides.length; index++) {
+    if (!slides[index].image) continue
+    useEditor.getState().selectSlide(index)
+    await afterRender()
+    exportImage(format, `${stamp}-${index + 1}`)
+  }
+  useEditor.getState().selectSlide(activeSlide)
+  // 저장하느라 장을 오갔을 뿐이니 보던 장의 되돌리기 목록은 되살린다.
+  useEditor.setState({ past, future })
 }

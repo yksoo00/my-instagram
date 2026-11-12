@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { coverScale, currentTemplateSettings, gridInset, useEditor } from './store'
+import {
+  allSlides,
+  coverScale,
+  currentTemplateSettings,
+  gridInset,
+  useEditor,
+} from './store'
 
 const initial = useEditor.getState()
 
@@ -75,6 +81,58 @@ describe('되돌리기', () => {
     useEditor.getState().undo()
     useEditor.getState().setRatio('9:16')
     expect(useEditor.getState().future).toHaveLength(0)
+  })
+})
+
+describe('슬라이드', () => {
+  it('장마다 사진·글은 따로, 제목 모양은 같이 쓴다', () => {
+    const state = useEditor.getState
+    state().setImage(fakeImage(1080, 1350))
+    state().setTitle({ text: '첫 장', fontSize: 100 })
+    state().addSlide()
+    expect(state()).toMatchObject({ activeSlide: 1, image: null })
+    expect(state().title).toMatchObject({ text: '제목을 입력하세요', fontSize: 100 })
+
+    state().setTitle({ text: '둘째 장' })
+    state().selectSlide(0)
+    expect(state().title.text).toBe('첫 장')
+    expect(state().image).not.toBeNull()
+    expect(allSlides().map((slide) => slide.text)).toEqual(['첫 장', '둘째 장'])
+  })
+
+  it('장을 옮기면 되돌리기 목록을 비운다', () => {
+    useEditor.getState().setTitle({ text: 'a' })
+    useEditor.getState().addSlide()
+    expect(useEditor.getState().past).toHaveLength(0)
+  })
+
+  it('비율을 바꾸면 다른 장의 사진도 다시 맞춘다', () => {
+    const state = useEditor.getState
+    state().setImage(fakeImage(1080, 1080))
+    state().addSlide()
+    state().setRatio('1:1')
+    state().selectSlide(0)
+    expect(state().image).toMatchObject({ scale: 1, x: 0, y: 0 })
+  })
+
+  it('장을 지우면 보던 장이 알맞게 바뀐다', () => {
+    const state = useEditor.getState
+    state().setTitle({ text: 'A' })
+    state().addSlide()
+    state().setTitle({ text: 'B' })
+    state().addSlide()
+    state().setTitle({ text: 'C' })
+
+    state().removeSlide(0) // 앞 장을 지우면 보던 장(C) 번호만 당겨진다
+    expect(state()).toMatchObject({ activeSlide: 1 })
+    expect(state().title.text).toBe('C')
+
+    state().removeSlide(1) // 보던 장을 지우면 이웃으로 간다
+    expect(state().activeSlide).toBe(0)
+    expect(state().title.text).toBe('B')
+
+    state().removeSlide(0) // 마지막 한 장은 못 지운다
+    expect(state().slides).toHaveLength(1)
   })
 })
 

@@ -210,6 +210,16 @@ body {
   flex: 1;
 }
 
+.slides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slides button {
+  min-width: 36px;
+}
+
 .hint {
   margin: 0;
   font-size: 12px;

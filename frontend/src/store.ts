@@ -96,10 +96,29 @@ export interface TemplateSettings {
   footer?: FooterState
 }
 
+/**
+ * 슬라이드마다 다른 것만 담는다. 비율·그라데이션·제목 모양·푸터는 모든 장이 같이 쓴다.
+ * 지금 고르고 있는 장의 값은 최상위 필드(image·adjust·title.text)에 있고,
+ * 이 목록에서 그 장의 칸은 장을 옮길 때까지 오래된 값이다.
+ */
+export interface SlideData {
+  image: ImageState | null
+  adjust: AdjustState
+  text: string
+}
+
 interface EditorState extends Snapshot {
   past: Snapshot[]
   future: Snapshot[]
   error: string | null
+  slides: SlideData[]
+  activeSlide: number
+  /** 각 장 오른쪽 위에 "1/5" 표시 */
+  numbering: boolean
+  setNumbering: (numbering: boolean) => void
+  addSlide: () => void
+  selectSlide: (index: number) => void
+  removeSlide: (index: number) => void
   /** 화면 보조선. 되돌리기·저장 대상이 아니다. */
   showGuide: boolean
   setShowGuide: (show: boolean) => void
@@ -137,6 +156,29 @@ function fit(element: HTMLImageElement, ratio: RatioKey): ImageState {
 }
 
 const DEFAULT_RATIO: RatioKey = '4:5'
+const DEFAULT_TEXT = '제목을 입력하세요'
+const DEFAULT_ADJUST: AdjustState = { brightness: 0, contrast: 0 }
+
+/** 비율이 바뀌면 지금 장이 아닌 장의 사진도 새 비율에 다시 맞춘다. */
+function refitSlides(slides: SlideData[], ratio: RatioKey): SlideData[] {
+  return slides.map((slide) =>
+    slide.image ? { ...slide, image: fit(slide.image.element, ratio) } : slide,
+  )
+}
+
+/** 최상위 필드의 지금 장 값을 목록에 반영한 목록 */
+function withLiveSlide(state: EditorState): SlideData[] {
+  return state.slides.map((slide, index) =>
+    index === state.activeSlide
+      ? { image: state.image, adjust: state.adjust, text: state.title.text }
+      : slide,
+  )
+}
+
+/** 모든 장의 값. 지금 장은 최상위 필드 값을 쓴다. */
+export function allSlides(): SlideData[] {
+  return withLiveSlide(useEditor.getState())
+}
 
 const HISTORY_LIMIT = 100
 const MERGE_WINDOW_MS = 600
@@ -182,6 +224,10 @@ export const useEditor = create<EditorState>((set) => ({
       lastKey = null
       return {
         ...previous,
+        slides:
+          previous.ratio === state.ratio
+            ? state.slides
+            : refitSlides(state.slides, previous.ratio),
         past: state.past.slice(0, -1),
         future: [snapshot(state), ...state.future],
       }
@@ -194,6 +240,8 @@ export const useEditor = create<EditorState>((set) => ({
       lastKey = null
       return {
         ...next,
+        slides:
+          next.ratio === state.ratio ? state.slides : refitSlides(state.slides, next.ratio),
         past: [...state.past, snapshot(state)],
         future: state.future.slice(1),
       }
@@ -201,12 +249,15 @@ export const useEditor = create<EditorState>((set) => ({
 
   ratio: DEFAULT_RATIO,
   image: null,
-  adjust: { brightness: 0, contrast: 0 },
+  adjust: DEFAULT_ADJUST,
   footer: { text: '', fontSize: 32 },
   showGuide: false,
+  slides: [{ image: null, adjust: DEFAULT_ADJUST, text: DEFAULT_TEXT }],
+  activeSlide: 0,
+  numbering: false,
   gradient: { height: 0.5, opacity: 0.9 },
   title: {
-    text: '제목을 입력하세요',
+    text: DEFAULT_TEXT,
     fontFamily: FONTS[0].value,
     fontSize: 84,
     bold: true,
@@ -226,6 +277,7 @@ export const useEditor = create<EditorState>((set) => ({
     set((state) => ({
       ...record(state, null),
       ratio,
+      slides: refitSlides(state.slides, ratio),
       image: state.image ? fit(state.image.element, ratio) : null,
       // 제목은 아래쪽 기준으로 놓는 요소라서 바닥과의 거리를 유지한다.
       title: {
@@ -288,6 +340,66 @@ export const useEditor = create<EditorState>((set) => ({
 
   setShowGuide: (showGuide) => set({ showGuide }),
 
+  setNumbering: (numbering) => set({ numbering }),
+
+  // 장을 옮기면 되돌리기 목록은 비운다. 다른 장의 사진·글과 뒤섞여 되돌려지는 것을 막으려고.
+  selectSlide: (index) =>
+    set((state) => {
+      const slides = withLiveSlide(state)
+      const target = slides[index]
+      if (!target || index === state.activeSlide) return {}
+      lastKey = null
+      return {
+        slides,
+        activeSlide: index,
+        image: target.image,
+        adjust: target.adjust,
+        title: { ...state.title, text: target.text },
+        past: [],
+        future: [],
+      }
+    }),
+
+  addSlide: () =>
+    set((state) => {
+      lastKey = null
+      return {
+        slides: [
+          ...withLiveSlide(state),
+          { image: null, adjust: DEFAULT_ADJUST, text: DEFAULT_TEXT },
+        ],
+        activeSlide: state.slides.length,
+        image: null,
+        adjust: DEFAULT_ADJUST,
+        title: { ...state.title, text: DEFAULT_TEXT },
+        past: [],
+        future: [],
+      }
+    }),
+
+  removeSlide: (index) =>
+    set((state) => {
+      if (state.slides.length <= 1 || !state.slides[index]) return {}
+      const slides = withLiveSlide(state).filter((_, i) => i !== index)
+      const active =
+        index === state.activeSlide
+          ? Math.min(index, slides.length - 1)
+          : index < state.activeSlide
+            ? state.activeSlide - 1
+            : state.activeSlide
+      const target = slides[active]
+      lastKey = null
+      return {
+        slides,
+        activeSlide: active,
+        image: target.image,
+        adjust: target.adjust,
+        title: { ...state.title, text: target.text },
+        past: [],
+        future: [],
+      }
+    }),
+
   setAdjust: (patch) =>
     set((state) => ({
       ...record(state, `adjust:${Object.keys(patch).join()}`),
@@ -304,6 +416,7 @@ export const useEditor = create<EditorState>((set) => ({
     set((state) => ({
       ...record(state, null),
       ratio: settings.ratio,
+      slides: refitSlides(state.slides, settings.ratio),
       image: state.image ? fit(state.image.element, settings.ratio) : null,
       gradient: settings.gradient,
       title: { ...settings.title, text: state.title.text },
