@@ -321,11 +321,13 @@ export function Canvas() {
                 height={gradientHeight}
                 fillLinearGradientStartPoint={{ x: 0, y: 0 }}
                 fillLinearGradientEndPoint={{ x: 0, y: gradientHeight }}
+                // 농도 100% 면 아래쪽 40% 가 사진이 비치지 않는 완전한 검정이 되도록
+                // 중간 지점(60%)부터 최종 농도로 맞춘다.
                 fillLinearGradientColorStops={[
                   0,
                   'rgba(0,0,0,0)',
                   0.6,
-                  `rgba(0,0,0,${gradient.opacity * 0.85})`,
+                  `rgba(0,0,0,${gradient.opacity})`,
                   1,
                   `rgba(0,0,0,${gradient.opacity})`,
                 ]}
